@@ -1,3 +1,7 @@
+/**
+ * @author Bohun Kim
+ */
+
 use std::io::{self, Write};
 pub use crossterm::{
     cursor,
