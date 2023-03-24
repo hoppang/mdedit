@@ -44,7 +44,12 @@ impl Editor {
      * 현재 커서 위치에 글자 하나를 출력
      */
     fn put_char(&mut self, ch: char) -> () {
-        queue!(&self.screen, cursor::MoveTo(self.x, self.y));
+        match queue!(&self.screen, cursor::MoveTo(self.x, self.y)) {
+            Ok(()) => (),
+            Err(error) => {
+                panic!("Failed to queue mouse position: {:?}", error);
+            }
+        }
         print!("{}", ch);
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
