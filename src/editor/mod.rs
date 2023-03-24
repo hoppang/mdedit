@@ -8,8 +8,9 @@ pub struct Editor {
 
 pub use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent},
-    execute, queue, style::{self, Attribute, Color, Stylize},
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    execute, queue,
+    style::{self, Attribute, Color, Stylize},
     terminal::{self, ClearType},
     Command, Result,
 };
@@ -31,8 +32,8 @@ impl Editor {
 
         loop {
             match read_char()? {
-                'q' => break,
-                c => self.put_char(c),
+                (KeyModifiers::CONTROL, 'q') => break,
+                (_, c) => self.put_char(c),
             }
         }
 
@@ -61,14 +62,14 @@ impl Editor {
     }
 }
 
-fn read_char() -> Result<char> {
+fn read_char() -> Result<(KeyModifiers, char)> {
     loop {
         if let Ok(Event::Key(KeyEvent {
             code: KeyCode::Char(c),
-            ..
+            modifiers: m,
         })) = event::read()
         {
-            return Ok(c);
+            return Ok((m, c));
         }
     }
 }
