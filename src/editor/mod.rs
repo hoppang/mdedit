@@ -4,6 +4,7 @@ pub struct Editor {
     x: u16,
     y: u16,
     screen: Stdout,
+    line_buffer: String,
 }
 
 pub use crossterm::{
@@ -22,6 +23,7 @@ impl Editor {
             screen: std::io::stdout(),
             x: 0,
             y: 0,
+            line_buffer: String::new(),
         }
     }
 
@@ -51,19 +53,23 @@ impl Editor {
                 panic!("Failed to queue mouse position: {:?}", error);
             }
         }
-        print!("{}", ch);
+
+        self.line_buffer.push(ch);
+        print!("{}", self.line_buffer);
+
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
             Err(error) => {
                 panic!("Failed to put char {:?}", error);
             }
         };
-        self.x += 1
+        // self.x += 1
     }
 }
 
 fn read_char() -> Result<(KeyModifiers, char)> {
     loop {
+        // rust 의 char 크기는 4바이트이므로 한글도 들어감.
         if let Ok(Event::Key(KeyEvent {
             code: KeyCode::Char(c),
             modifiers: m,
