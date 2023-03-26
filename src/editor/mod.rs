@@ -1,8 +1,7 @@
 use std::io::{Stdout, Write};
 
 pub struct Editor {
-    x: u16,
-    y: u16,
+    current_line: u16,
     screen: Stdout,
     line_buffer: String,
 }
@@ -21,8 +20,7 @@ impl Editor {
     pub fn default() -> Editor {
         Editor {
             screen: std::io::stdout(),
-            x: 0,
-            y: 0,
+            current_line: 0,
             line_buffer: String::new(),
         }
     }
@@ -35,7 +33,10 @@ impl Editor {
         loop {
             match read_char()? {
                 (KeyModifiers::CONTROL, 'q') => break,
-                (_, c) => self.put_char(c),
+                (_, c) => {
+                    self.put_char(c);
+                    self.refresh()
+                }
             }
         }
 
@@ -44,17 +45,23 @@ impl Editor {
     }
 
     /**
-     * 현재 커서 위치에 글자 하나를 출력
+     * 버퍼에 글자 하나 추가
      */
-    fn put_char(&mut self, ch: char) -> () {
-        match queue!(&self.screen, cursor::MoveTo(self.x, self.y)) {
+    fn put_char(&mut self, ch: char) {
+        self.line_buffer.push(ch)
+    }
+
+    /**
+     * 현재 커서가 있는 한 줄 갱신
+     */
+    fn refresh(&mut self) {
+        match queue!(&self.screen, cursor::MoveTo(0, self.current_line)) {
             Ok(()) => (),
             Err(error) => {
                 panic!("Failed to queue mouse position: {:?}", error);
             }
         }
 
-        self.line_buffer.push(ch);
         print!("{}", self.line_buffer);
 
         match Write::flush(&mut self.screen) {
@@ -63,7 +70,6 @@ impl Editor {
                 panic!("Failed to put char {:?}", error);
             }
         };
-        // self.x += 1
     }
 }
 
