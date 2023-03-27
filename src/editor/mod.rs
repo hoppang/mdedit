@@ -32,10 +32,18 @@ impl Editor {
 
         loop {
             match read_char()? {
-                (KeyModifiers::CONTROL, 'q') => break,
-                (_, c) => {
+                (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
+                (_, KeyCode::Backspace) => {
+                    self.pop_back();
+                    self.refresh()
+                },
+                (_, KeyCode::Char(c)) => {
                     self.put_char(c);
                     self.refresh()
+                }
+                // todo: 패닉 말고 다른 걸로
+                _ => {
+                    panic!("read_char not matched")
                 }
             }
         }
@@ -49,6 +57,13 @@ impl Editor {
      */
     fn put_char(&mut self, ch: char) {
         self.line_buffer.push(ch)
+    }
+
+    /**
+     * 버퍼의 마지막 글자 삭제
+     */
+    fn pop_back(&mut self) {
+        self.line_buffer.pop();
     }
 
     /**
@@ -73,11 +88,11 @@ impl Editor {
     }
 }
 
-fn read_char() -> Result<(KeyModifiers, char)> {
+fn read_char() -> Result<(KeyModifiers, KeyCode)> {
     loop {
         // rust 의 char 크기는 4바이트이므로 한글도 들어감.
         if let Ok(Event::Key(KeyEvent {
-            code: KeyCode::Char(c),
+            code: c,
             modifiers: m,
         })) = event::read()
         {
