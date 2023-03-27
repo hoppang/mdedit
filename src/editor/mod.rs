@@ -41,10 +41,7 @@ impl Editor {
                     self.put_char(c);
                     self.refresh()
                 }
-                // todo: 패닉 말고 다른 걸로
-                _ => {
-                    panic!("read_char not matched")
-                }
+                _ => {} // do nothing
             }
         }
 
