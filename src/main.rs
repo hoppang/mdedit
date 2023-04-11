@@ -2,9 +2,11 @@
  * @author Bohun Kim
  */
 mod editor;
+
 use editor::Editor;
-use log::{info, LevelFilter};
+
 use crossterm::terminal::size;
+use log::{info, LevelFilter};
 
 fn setup_log() {
     simple_logging::log_to_file("dev.log", LevelFilter::Info).unwrap()

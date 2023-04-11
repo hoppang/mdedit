@@ -1,9 +1,12 @@
 use std::io::{Stdout, Write};
 
+mod line_buffer;
+use line_buffer::LineBuffer;
+
 pub struct Editor {
     current_line: u16,
     screen: Stdout,
-    line_buffer: String,
+    line_buffer: LineBuffer,
 }
 
 pub use crossterm::{
@@ -21,7 +24,7 @@ impl Editor {
         Editor {
             screen: std::io::stdout(),
             current_line: 0,
-            line_buffer: String::new(),
+            line_buffer: LineBuffer::new(),
         }
     }
 
@@ -36,7 +39,7 @@ impl Editor {
                 (_, KeyCode::Backspace) => {
                     self.pop_back();
                     self.refresh()
-                },
+                }
                 (_, KeyCode::Char(c)) => {
                     self.put_char(c);
                     self.refresh()
@@ -74,7 +77,7 @@ impl Editor {
             }
         }
 
-        print!("{}", self.line_buffer);
+        print!("{}", self.line_buffer.borrow());
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
