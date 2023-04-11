@@ -77,7 +77,7 @@ impl Editor {
             }
         }
 
-        print!("{}", self.line_buffer.borrow());
+        self.line_buffer.draw();
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
