@@ -36,6 +36,7 @@ impl Editor {
         loop {
             match read_char()? {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
+                (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => {
                     self.pop_back();
                     self.refresh()
