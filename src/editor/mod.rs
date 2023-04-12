@@ -3,12 +3,6 @@ use std::io::{Stdout, Write};
 mod line_buffer;
 use line_buffer::LineBuffer;
 
-pub struct Editor {
-    current_line: u16,
-    screen: Stdout,
-    line_buffer: LineBuffer,
-}
-
 pub use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
@@ -17,6 +11,12 @@ pub use crossterm::{
     terminal::{self, ClearType},
     Command, Result,
 };
+
+pub struct Editor {
+    current_line: u16,
+    screen: Stdout,
+    line_buffer: LineBuffer,
+}
 
 impl Editor {
     // 기본값
