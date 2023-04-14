@@ -38,11 +38,11 @@ impl Editor {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
                 (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => {
-                    self.pop_back();
+                    self.line_buffer.pop();
                     self.refresh()
                 }
                 (_, KeyCode::Char(c)) => {
-                    self.put_char(c);
+                    self.line_buffer.push(c);
                     self.refresh()
                 }
                 _ => {} // do nothing
@@ -51,20 +51,6 @@ impl Editor {
 
         execute!(&self.screen, terminal::LeaveAlternateScreen)?;
         terminal::disable_raw_mode()
-    }
-
-    /**
-     * 버퍼에 글자 하나 추가
-     */
-    fn put_char(&mut self, ch: char) {
-        self.line_buffer.push(ch)
-    }
-
-    /**
-     * 버퍼의 마지막 글자 삭제
-     */
-    fn pop_back(&mut self) {
-        self.line_buffer.pop();
     }
 
     /**
