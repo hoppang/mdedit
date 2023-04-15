@@ -1,4 +1,5 @@
 use std::fmt;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, PartialEq)]
 enum LineErr {
@@ -43,6 +44,10 @@ impl LineBuffer {
 
     pub fn len(&self) -> usize {
         self.s.len()
+    }
+
+    pub fn width(&self) -> usize {
+        self.s.width_cjk()
     }
 
     /*
@@ -133,5 +138,17 @@ mod test {
         assert_eq!(s.prev(), 3);
         assert_eq!(s.prev(), 0);
         assert_eq!(s.prev(), 0);
+    }
+
+    #[test]
+    fn test_width() {
+        let s1: LineBuffer = LineBuffer::from("Ｈｅｌｌｏ");
+        assert_eq!(s1.width(), 10);
+
+        let s2: LineBuffer = LineBuffer::from("김치stew");
+        assert_eq!(s2.width(), 8);
+
+        let s3: LineBuffer = LineBuffer::from("Hello");
+        assert_eq!(s3.width(), 5);
     }
 }

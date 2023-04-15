@@ -63,7 +63,7 @@ impl Editor {
         self.line_buffer.draw(screen_width());
         queue!(
             &self.screen,
-            cursor::MoveTo(self.line_buffer.len() as u16, self.current_line)
+            cursor::MoveTo(self.line_buffer.width() as u16, self.current_line)
         )
         .expect("Failed to move cursor");
 
