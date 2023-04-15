@@ -33,11 +33,15 @@ impl LineBuffer {
     Immutable functions
     */
 
-    pub fn draw(&self) {
+    pub fn draw(&self, screen_width: usize) {
         print!("{}", self.s);
+
+        for _ in self.s.len()..screen_width - 1 {
+            print!(" ");
+        }
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.s.len()
     }
 

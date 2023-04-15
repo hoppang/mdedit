@@ -1,3 +1,4 @@
+use crossterm::terminal::size;
 use std::io::{Stdout, Write};
 
 mod line_buffer;
@@ -57,14 +58,14 @@ impl Editor {
      * 현재 커서가 있는 한 줄 갱신
      */
     fn refresh(&mut self) {
-        match queue!(&self.screen, cursor::MoveTo(0, self.current_line)) {
-            Ok(()) => (),
-            Err(error) => {
-                panic!("Failed to queue mouse position: {:?}", error);
-            }
-        }
+        queue!(&self.screen, cursor::MoveTo(0, self.current_line)).expect("Failed to move cursor");
 
-        self.line_buffer.draw();
+        self.line_buffer.draw(screen_width());
+        queue!(
+            &self.screen,
+            cursor::MoveTo(self.line_buffer.len() as u16, self.current_line)
+        )
+        .expect("Failed to move cursor");
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
@@ -85,5 +86,12 @@ fn read_char() -> Result<(KeyModifiers, KeyCode)> {
         {
             return Ok((m, c));
         }
+    }
+}
+
+fn screen_width() -> usize {
+    match size() {
+        Ok((cols, _rows)) => cols as usize,
+        Err(error) => panic!("screen_width: {:?}", error),
     }
 }
