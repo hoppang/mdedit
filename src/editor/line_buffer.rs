@@ -52,10 +52,23 @@ impl LineBuffer {
     }
 
     pub fn current_char(&self) -> char {
+        self.get_char(self.cursor)
+    }
+
+    fn get_char(&self, index: usize) -> char {
+        let mut internal_cursor = self.cursor;
+        loop {
+            if self.s.is_char_boundary(internal_cursor) {
+                break;
+            }
+
+            internal_cursor -= 1;
+        }
+
         if self.s.is_empty() {
             '\0'
         } else {
-            let c = self.s[self.cursor..].chars().next().unwrap();
+            let c = self.s[internal_cursor..].chars().next().unwrap();
             c
         }
     }
@@ -114,6 +127,11 @@ impl LineBuffer {
         }
 
         self.cursor
+    }
+
+    // 개발용. 실 사용 중에는 사용하지 않아야 함
+    pub fn dev_setcursor(&mut self, new_cursor: usize) {
+        self.cursor = new_cursor;
     }
 }
 
@@ -176,10 +194,22 @@ mod test {
     #[test]
     fn test_get() {
         let mut s1: LineBuffer = LineBuffer::from("Ｈｅｌｌｏ");
-        s1.next();
+        s1.next().unwrap();
         assert_eq!(s1.current_char(), 'ｅ');
 
         let s2: LineBuffer = LineBuffer::from("안녕");
         assert_eq!(s2.current_char_width(), 2);
+    }
+
+    #[test]
+    fn test_prev() {
+        let mut s1: LineBuffer = LineBuffer::from("안녕하세요");
+        s1.prev();
+        assert_eq!(s1.current_char(), '안');
+
+        // 커서가 char_boundary 위치가 아니더라도(한글 입력 중에 그렇게 될 수 있음)
+        // 현재 캐릭터 정보를 가져올 수 있어야 한다.
+        s1.dev_setcursor(5);
+        assert_eq!(s1.current_char(), '녕');
     }
 }
