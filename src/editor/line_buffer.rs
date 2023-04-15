@@ -1,5 +1,5 @@
 use log::info;
-use std::fmt;
+use std::{fmt, cmp};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 #[derive(Debug)]
@@ -105,6 +105,7 @@ impl LineBuffer {
     pub fn next(&mut self) -> Result<usize, LineErr> {
         loop {
             self.cursor += 1;
+            self.cursor = cmp::min(self.cursor, self.s.len());
 
             if self.cursor >= self.s.len() {
                 break Err(LineErr::EndOfString);
