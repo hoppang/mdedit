@@ -54,6 +54,7 @@ impl Editor {
         // let mut w = &mut self.screen;
         execute!(&self.screen, terminal::EnterAlternateScreen)?;
         terminal::enable_raw_mode()?;
+        self.refresh(false);
 
         loop {
             match read_char()? {
