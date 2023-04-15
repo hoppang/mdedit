@@ -2,9 +2,15 @@ use log::info;
 use std::fmt;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum LineErr {
     EndOfString,
+}
+
+impl std::cmp::PartialEq for LineErr {
+    fn eq(&self, other: &LineErr) -> bool {
+        self == other
+    }
 }
 
 pub struct LineBuffer {
@@ -24,6 +30,7 @@ impl LineBuffer {
         }
     }
 
+    #[cfg(test)]
     pub fn from(arg: &str) -> LineBuffer {
         LineBuffer {
             s: String::from(arg),
@@ -43,6 +50,7 @@ impl LineBuffer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.s.len()
     }
@@ -56,7 +64,7 @@ impl LineBuffer {
     }
 
     fn get_char(&self, index: usize) -> char {
-        let mut internal_cursor = self.cursor;
+        let mut internal_cursor = index;
         loop {
             if self.s.is_char_boundary(internal_cursor) {
                 break;
@@ -65,9 +73,7 @@ impl LineBuffer {
             internal_cursor -= 1;
         }
 
-        if self.s.is_empty() {
-            '\0'
-        } else if internal_cursor >= self.s.len() {
+        if self.s.is_empty() || internal_cursor >= self.s.len() {
             '\0'
         } else {
             let c = self.s[internal_cursor..].chars().next().unwrap();
@@ -130,7 +136,7 @@ impl LineBuffer {
         self.cursor
     }
 
-    // 개발용. 실 사용 중에는 사용하지 않아야 함
+    #[cfg(test)]
     pub fn dev_setcursor(&mut self, new_cursor: usize) {
         self.cursor = new_cursor;
     }

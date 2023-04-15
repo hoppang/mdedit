@@ -1,6 +1,5 @@
 use crossterm::terminal::size;
 use log::info;
-use std::cmp;
 use std::io::{Stdout, Write};
 
 mod line_buffer;
@@ -43,6 +42,7 @@ pub struct Editor {
 impl Editor {
     // 기본값
     pub fn default() -> Editor {
+        info!("Create new editor object");
         Editor {
             screen: std::io::stdout(),
             cursor: Cursor { x: 0, y: 0 },
@@ -78,7 +78,7 @@ impl Editor {
                 (KeyModifiers::NONE, KeyCode::Right) => {
                     self.cursor
                         .move_right(self.line_buffer.current_char_width() as u16);
-                    self.line_buffer.next();
+                    self.line_buffer.next().unwrap();
                     self.refresh(false)
                 }
                 _ => {} // do nothing
@@ -107,20 +107,6 @@ impl Editor {
                 panic!("Failed to put char {:?}", error);
             }
         };
-    }
-
-    fn move_cursor(&mut self) {
-        queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
-            .expect("Failed to move cursor");
-        Write::flush(&mut self.screen).expect("Failed to flush");
-    }
-}
-
-fn prev_cursor(current_cursor: u16, x: u16) -> u16 {
-    if x - current_cursor > 0 {
-        current_cursor
-    } else {
-        current_cursor - x
     }
 }
 
