@@ -1,5 +1,4 @@
-use log::info;
-use std::fmt;
+use std::{cmp, fmt};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 #[derive(Debug)]
@@ -105,6 +104,7 @@ impl LineBuffer {
     pub fn next(&mut self) -> Result<usize, LineErr> {
         loop {
             self.cursor += 1;
+            self.cursor = cmp::min(self.cursor, self.s.len());
 
             if self.cursor >= self.s.len() {
                 break Err(LineErr::EndOfString);
@@ -117,7 +117,6 @@ impl LineBuffer {
     }
 
     pub fn prev(&mut self) -> usize {
-        info!("prev: cursor = {}", self.cursor);
         loop {
             if self.cursor == 0 {
                 break;
@@ -136,9 +135,39 @@ impl LineBuffer {
         self.cursor
     }
 
-    #[cfg(test)]
-    pub fn dev_setcursor(&mut self, new_cursor: usize) {
-        self.cursor = new_cursor;
+    /**
+        Return: (byte_cursor, screen_cursor)
+    */
+    pub fn set_cursor(&mut self, new_cursor: u16) -> (u16, u16) {
+        self.cursor = new_cursor as usize;
+
+        loop {
+            if self.s.is_char_boundary(self.cursor) {
+                break;
+            }
+
+            if self.cursor > 0 {
+                self.cursor -= 1;
+            }
+        }
+
+        let head_width = self.s[..self.cursor].width_cjk();
+        (self.cursor as u16, head_width as u16)
+    }
+
+    // width 는 화면상의 길이, length 는 바이트 단위 길이
+    pub fn index_from_width(&self, width: u16) -> u16 {
+        let mut cursor: u16 = 0;
+
+        for c in self.s.chars() {
+            if cursor + 1 >= width {
+                break;
+            }
+
+            cursor += c.width_cjk().unwrap() as u16;
+        }
+
+        cursor
     }
 }
 
@@ -167,7 +196,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor() {
+    fn test_prev_next() {
         let mut s: LineBuffer = LineBuffer::from("돼지c");
         assert_eq!(s.next().unwrap(), 3);
         assert_eq!(s.next().unwrap(), 6);
@@ -209,14 +238,29 @@ mod test {
     }
 
     #[test]
-    fn test_prev() {
+    fn test_cursor() {
         let mut s1: LineBuffer = LineBuffer::from("안녕하세요");
         s1.prev();
         assert_eq!(s1.current_char(), '안');
 
         // 커서가 char_boundary 위치가 아니더라도(한글 입력 중에 그렇게 될 수 있음)
         // 현재 캐릭터 정보를 가져올 수 있어야 한다.
-        s1.dev_setcursor(5);
-        assert_eq!(s1.current_char(), '녕');
+        assert_eq!(s1.set_cursor(5), (3, 2));
+        assert_eq!(s1.set_cursor(10), (9, 6));
+        assert_eq!(s1.current_char(), '세');
+
+        let mut s2: LineBuffer = LineBuffer::from("Hello");
+        assert_eq!(s2.set_cursor(3), (3, 3));
+    }
+
+    #[test]
+    fn test_width_conv() {
+        // unicode-width 를 bytes-length 로 변환하는 코드 테스트.
+        let s: LineBuffer = LineBuffer::from("안녕하세요");
+
+        assert_eq!(s.index_from_width(6), 6);
+        assert_eq!(s.index_from_width(7), 6);
+        assert_eq!(s.index_from_width(0), 0);
+        assert_eq!(s.index_from_width(9), 8);
     }
 }
