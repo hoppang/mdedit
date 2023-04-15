@@ -1,13 +1,9 @@
+use crossterm::terminal::size;
+use log::info;
 use std::io::{Stdout, Write};
 
 mod line_buffer;
 use line_buffer::LineBuffer;
-
-pub struct Editor {
-    current_line: u16,
-    screen: Stdout,
-    line_buffer: LineBuffer,
-}
 
 pub use crossterm::{
     cursor,
@@ -18,12 +14,38 @@ pub use crossterm::{
     Command, Result,
 };
 
+struct Cursor {
+    x: u16,
+    y: u16,
+}
+
+impl Cursor {
+    fn move_left(&mut self, x: u16) {
+        if x <= self.x {
+            self.x -= x;
+        }
+    }
+
+    fn move_right(&mut self, x: u16) {
+        if self.x + x <= screen_width() as u16 {
+            self.x += x;
+        }
+    }
+}
+
+pub struct Editor {
+    screen: Stdout,
+    line_buffer: LineBuffer,
+    cursor: Cursor,
+}
+
 impl Editor {
     // 기본값
     pub fn default() -> Editor {
+        info!("Create new editor object");
         Editor {
             screen: std::io::stdout(),
-            current_line: 0,
+            cursor: Cursor { x: 0, y: 0 },
             line_buffer: LineBuffer::new(),
         }
     }
@@ -38,12 +60,26 @@ impl Editor {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
                 (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => {
-                    self.pop_back();
-                    self.refresh()
+                    self.line_buffer.pop();
+                    self.cursor.x = self.line_buffer.width() as u16;
+                    self.refresh(true)
                 }
                 (_, KeyCode::Char(c)) => {
-                    self.put_char(c);
-                    self.refresh()
+                    self.line_buffer.push(c);
+                    self.cursor.x = self.line_buffer.width() as u16;
+                    self.refresh(true)
+                }
+                (KeyModifiers::NONE, KeyCode::Left) => {
+                    self.line_buffer.prev();
+                    self.cursor
+                        .move_left(self.line_buffer.current_char_width() as u16);
+                    self.refresh(false)
+                }
+                (KeyModifiers::NONE, KeyCode::Right) => {
+                    self.cursor
+                        .move_right(self.line_buffer.current_char_width() as u16);
+                    self.line_buffer.next().unwrap();
+                    self.refresh(false)
                 }
                 _ => {} // do nothing
             }
@@ -54,31 +90,16 @@ impl Editor {
     }
 
     /**
-     * 버퍼에 글자 하나 추가
-     */
-    fn put_char(&mut self, ch: char) {
-        self.line_buffer.push(ch)
-    }
-
-    /**
-     * 버퍼의 마지막 글자 삭제
-     */
-    fn pop_back(&mut self) {
-        self.line_buffer.pop();
-    }
-
-    /**
      * 현재 커서가 있는 한 줄 갱신
      */
-    fn refresh(&mut self) {
-        match queue!(&self.screen, cursor::MoveTo(0, self.current_line)) {
-            Ok(()) => (),
-            Err(error) => {
-                panic!("Failed to queue mouse position: {:?}", error);
-            }
-        }
+    fn refresh(&mut self, draw_line: bool) {
+        queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
 
-        self.line_buffer.draw();
+        if draw_line {
+            self.line_buffer.draw(screen_width());
+        }
+        queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
+            .expect("Failed to move cursor");
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
@@ -99,5 +120,12 @@ fn read_char() -> Result<(KeyModifiers, KeyCode)> {
         {
             return Ok((m, c));
         }
+    }
+}
+
+fn screen_width() -> usize {
+    match size() {
+        Ok((cols, _rows)) => cols as usize,
+        Err(error) => panic!("screen_width: {:?}", error),
     }
 }
