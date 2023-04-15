@@ -78,7 +78,7 @@ impl Editor {
                 (KeyModifiers::NONE, KeyCode::Right) => {
                     self.cursor
                         .move_right(self.line_buffer.current_char_width() as u16);
-                    self.line_buffer.next().unwrap();
+                    let _no_use = self.line_buffer.next();
                     self.refresh(false)
                 }
                 _ => {} // do nothing
