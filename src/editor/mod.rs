@@ -35,7 +35,7 @@ impl Cursor {
 
 pub struct Editor {
     screen: Stdout,
-    line_buffer: LineBuffer,
+    contents: Vec<LineBuffer>,
     cursor: Cursor,
 }
 
@@ -46,7 +46,7 @@ impl Editor {
         Editor {
             screen: std::io::stdout(),
             cursor: Cursor { x: 0, y: 0 },
-            line_buffer: LineBuffer::new(),
+            contents: Vec::from([LineBuffer::new()]),
         }
     }
 
@@ -60,25 +60,27 @@ impl Editor {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
                 (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => {
-                    self.line_buffer.pop();
-                    self.cursor.x = self.line_buffer.width() as u16;
+                    self.current_line().pop();
+                    self.cursor.x = self.current_line().width() as u16;
                     self.refresh(true)
                 }
                 (_, KeyCode::Char(c)) => {
-                    self.line_buffer.push(c);
-                    self.cursor.x = self.line_buffer.width() as u16;
+                    self.current_line().push(c);
+                    self.cursor.x = self.current_line().width() as u16;
                     self.refresh(true)
                 }
                 (KeyModifiers::NONE, KeyCode::Left) => {
-                    self.line_buffer.prev();
-                    self.cursor
-                        .move_left(self.line_buffer.current_char_width() as u16);
+                    self.current_line().prev();
+                    let char_width =
+                        self.contents[self.cursor.y as usize].current_char_width() as u16;
+                    self.cursor.move_left(char_width);
                     self.refresh(false)
                 }
                 (KeyModifiers::NONE, KeyCode::Right) => {
-                    self.cursor
-                        .move_right(self.line_buffer.current_char_width() as u16);
-                    let _no_use = self.line_buffer.next();
+                    let char_width =
+                        self.contents[self.cursor.y as usize].current_char_width() as u16;
+                    self.cursor.move_right(char_width);
+                    let _no_use = self.current_line().next();
                     self.refresh(false)
                 }
                 _ => {} // do nothing
@@ -96,7 +98,7 @@ impl Editor {
         queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
 
         if draw_line {
-            self.line_buffer.draw(screen_width());
+            self.current_line().draw(screen_width());
         }
         queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
             .expect("Failed to move cursor");
@@ -107,6 +109,10 @@ impl Editor {
                 panic!("Failed to put char {:?}", error);
             }
         };
+    }
+
+    fn current_line(&mut self) -> &mut LineBuffer {
+        &mut self.contents[self.cursor.y as usize]
     }
 }
 
