@@ -71,11 +71,13 @@ impl Editor {
                 }
                 (KeyModifiers::NONE, KeyCode::Left) => {
                     self.line_buffer.prev();
-                    self.cursor.move_left(self.line_buffer.current_char_width() as u16);
+                    self.cursor
+                        .move_left(self.line_buffer.current_char_width() as u16);
                     self.refresh(false)
                 }
                 (KeyModifiers::NONE, KeyCode::Right) => {
-                    self.cursor.move_right(self.line_buffer.current_char_width() as u16);
+                    self.cursor
+                        .move_right(self.line_buffer.current_char_width() as u16);
                     self.line_buffer.next();
                     self.refresh(false)
                 }

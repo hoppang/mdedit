@@ -1,6 +1,6 @@
+use log::info;
 use std::fmt;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
-use log::info;
 
 #[derive(Debug, PartialEq)]
 pub enum LineErr {
