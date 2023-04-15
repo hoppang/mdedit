@@ -115,10 +115,15 @@ impl Editor {
     fn print_dbgmsg(&mut self) {
         queue!(&self.screen, cursor::MoveTo(0, screen_height() - 1))
             .expect("Failed to move cursor");
-        
+
         let x = self.cursor.x;
         let y = self.cursor.y;
-        print!("current_line: {:?} cx {:?} cy {}    ", self.current_line(), x, y);
+        print!(
+            "current_line: {:?} cx {:?} cy {}    ",
+            self.current_line(),
+            x,
+            y
+        );
     }
 
     fn current_line(&mut self) -> &mut LineBuffer {

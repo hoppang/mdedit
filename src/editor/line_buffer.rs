@@ -1,5 +1,4 @@
-use log::info;
-use std::{fmt, cmp};
+use std::{cmp, fmt};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 #[derive(Debug)]
