@@ -26,6 +26,12 @@ impl Cursor {
             self.x -= x;
         }
     }
+
+    fn move_right(&mut self, x: u16) {
+        if self.x + x <= screen_width() as u16 {
+            self.x += x;
+        }
+    }
 }
 
 pub struct Editor {
@@ -64,8 +70,13 @@ impl Editor {
                     self.refresh(true)
                 }
                 (KeyModifiers::NONE, KeyCode::Left) => {
-                    self.cursor.move_left(self.line_buffer.current_char_width() as u16);
                     self.line_buffer.prev();
+                    self.cursor.move_left(self.line_buffer.current_char_width() as u16);
+                    self.refresh(false)
+                }
+                (KeyModifiers::NONE, KeyCode::Right) => {
+                    self.cursor.move_right(self.line_buffer.current_char_width() as u16);
+                    self.line_buffer.next();
                     self.refresh(false)
                 }
                 _ => {} // do nothing

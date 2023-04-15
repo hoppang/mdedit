@@ -3,7 +3,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use log::info;
 
 #[derive(Debug, PartialEq)]
-enum LineErr {
+pub enum LineErr {
     EndOfString,
 }
 
@@ -67,6 +67,8 @@ impl LineBuffer {
 
         if self.s.is_empty() {
             '\0'
+        } else if internal_cursor >= self.s.len() {
+            '\0'
         } else {
             let c = self.s[internal_cursor..].chars().next().unwrap();
             c
@@ -87,15 +89,14 @@ impl LineBuffer {
 
     pub fn push(&mut self, ch: char) {
         self.s.push(ch);
-        self.cursor = self.s.len() - 1;
-        info!("push {}: cursor = {}", ch, self.cursor);
+        self.cursor = self.s.len();
     }
 
     pub fn pop(&mut self) {
         self.s.pop();
     }
 
-    fn next(&mut self) -> Result<usize, LineErr> {
+    pub fn next(&mut self) -> Result<usize, LineErr> {
         loop {
             self.cursor += 1;
 
