@@ -89,6 +89,8 @@ impl Editor {
                     self.cursor.y += 1;
                     self.refresh(false)
                 }
+                (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
+                (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
                 _ => {} // do nothing
             }
         }
@@ -119,6 +121,28 @@ impl Editor {
 
     fn current_line(&mut self) -> &mut LineBuffer {
         &mut self.contents[self.cursor.y as usize]
+    }
+
+    // ================================================================================
+    // 키 입력 핸들러
+
+    fn handle_upkey(&mut self) {
+        if self.cursor.y > 0 {
+            self.cursor.y -= 1;
+
+            if self.cursor.x > self.current_line().len() as u16 {
+                self.cursor.x = self.current_line().len() as u16;
+            }
+
+            self.refresh(false);
+        }
+    }
+
+    fn handle_downkey(&mut self) {
+        if self.contents.len() - 1 > self.cursor.y as usize {
+            self.cursor.y += 1;
+            self.refresh(false);
+        }
     }
 }
 
