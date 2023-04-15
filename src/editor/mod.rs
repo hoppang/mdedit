@@ -83,6 +83,12 @@ impl Editor {
                     let _no_use = self.current_line().next();
                     self.refresh(false)
                 }
+                (KeyModifiers::NONE, KeyCode::Enter) => {
+                    self.contents.push(LineBuffer::new());
+                    self.cursor.x = 0;
+                    self.cursor.y += 1;
+                    self.refresh(false)
+                }
                 _ => {} // do nothing
             }
         }
