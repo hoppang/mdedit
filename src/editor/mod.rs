@@ -1,4 +1,6 @@
 use crossterm::terminal::size;
+use log::info;
+use std::cmp;
 use std::io::{Stdout, Write};
 
 mod line_buffer;
@@ -13,10 +15,23 @@ pub use crossterm::{
     Command, Result,
 };
 
+struct Cursor {
+    x: u16,
+    y: u16,
+}
+
+impl Cursor {
+    fn move_left(&mut self, x: u16) {
+        if x <= self.x {
+            self.x -= x;
+        }
+    }
+}
+
 pub struct Editor {
-    current_line: u16,
     screen: Stdout,
     line_buffer: LineBuffer,
+    cursor: Cursor,
 }
 
 impl Editor {
@@ -24,7 +39,7 @@ impl Editor {
     pub fn default() -> Editor {
         Editor {
             screen: std::io::stdout(),
-            current_line: 0,
+            cursor: Cursor { x: 0, y: 0 },
             line_buffer: LineBuffer::new(),
         }
     }
@@ -40,11 +55,18 @@ impl Editor {
                 (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => {
                     self.line_buffer.pop();
-                    self.refresh()
+                    self.cursor.x = self.line_buffer.width() as u16;
+                    self.refresh(true)
                 }
                 (_, KeyCode::Char(c)) => {
                     self.line_buffer.push(c);
-                    self.refresh()
+                    self.cursor.x = self.line_buffer.width() as u16;
+                    self.refresh(true)
+                }
+                (KeyModifiers::NONE, KeyCode::Left) => {
+                    self.cursor.move_left(self.line_buffer.current_char_width() as u16);
+                    self.line_buffer.prev();
+                    self.refresh(false)
                 }
                 _ => {} // do nothing
             }
@@ -57,15 +79,14 @@ impl Editor {
     /**
      * 현재 커서가 있는 한 줄 갱신
      */
-    fn refresh(&mut self) {
-        queue!(&self.screen, cursor::MoveTo(0, self.current_line)).expect("Failed to move cursor");
+    fn refresh(&mut self, draw_line: bool) {
+        queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
 
-        self.line_buffer.draw(screen_width());
-        queue!(
-            &self.screen,
-            cursor::MoveTo(self.line_buffer.width() as u16, self.current_line)
-        )
-        .expect("Failed to move cursor");
+        if draw_line {
+            self.line_buffer.draw(screen_width());
+        }
+        queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
+            .expect("Failed to move cursor");
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
@@ -73,6 +94,20 @@ impl Editor {
                 panic!("Failed to put char {:?}", error);
             }
         };
+    }
+
+    fn move_cursor(&mut self) {
+        queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
+            .expect("Failed to move cursor");
+        Write::flush(&mut self.screen).expect("Failed to flush");
+    }
+}
+
+fn prev_cursor(current_cursor: u16, x: u16) -> u16 {
+    if x - current_cursor > 0 {
+        current_cursor
+    } else {
+        current_cursor - x
     }
 }
 

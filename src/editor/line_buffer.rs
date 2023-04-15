@@ -1,5 +1,6 @@
 use std::fmt;
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use log::info;
 
 #[derive(Debug, PartialEq)]
 enum LineErr {
@@ -50,12 +51,31 @@ impl LineBuffer {
         self.s.width_cjk()
     }
 
+    pub fn current_char(&self) -> char {
+        if self.s.is_empty() {
+            '\0'
+        } else {
+            let c = self.s[self.cursor..].chars().next().unwrap();
+            c
+        }
+    }
+
+    pub fn current_char_width(&self) -> usize {
+        if self.current_char() == '\0' {
+            0
+        } else {
+            self.current_char().width_cjk().unwrap()
+        }
+    }
+
     /*
     Mutable functions
     */
 
     pub fn push(&mut self, ch: char) {
         self.s.push(ch);
+        self.cursor = self.s.len() - 1;
+        info!("push {}: cursor = {}", ch, self.cursor);
     }
 
     pub fn pop(&mut self) {
@@ -76,7 +96,8 @@ impl LineBuffer {
         }
     }
 
-    fn prev(&mut self) -> usize {
+    pub fn prev(&mut self) -> usize {
+        info!("prev: cursor = {}", self.cursor);
         loop {
             if self.cursor == 0 {
                 break;
@@ -141,7 +162,7 @@ mod test {
     }
 
     #[test]
-    fn test_width() {
+    fn test_str_width() {
         let s1: LineBuffer = LineBuffer::from("Ｈｅｌｌｏ");
         assert_eq!(s1.width(), 10);
 
@@ -150,5 +171,15 @@ mod test {
 
         let s3: LineBuffer = LineBuffer::from("Hello");
         assert_eq!(s3.width(), 5);
+    }
+
+    #[test]
+    fn test_get() {
+        let mut s1: LineBuffer = LineBuffer::from("Ｈｅｌｌｏ");
+        s1.next();
+        assert_eq!(s1.current_char(), 'ｅ');
+
+        let s2: LineBuffer = LineBuffer::from("안녕");
+        assert_eq!(s2.current_char_width(), 2);
     }
 }
