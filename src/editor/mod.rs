@@ -41,7 +41,7 @@ pub struct Editor {
 
 impl Editor {
     // 기본값
-    pub fn default() -> Editor {
+    pub fn new() -> Editor {
         info!("Create new editor object");
         Editor {
             screen: std::io::stdout(),
@@ -70,12 +70,7 @@ impl Editor {
                     self.cursor.x = self.current_line().width() as u16;
                     self.refresh(true)
                 }
-                (KeyModifiers::NONE, KeyCode::Enter) => {
-                    self.contents.push(LineBuffer::new());
-                    self.cursor.x = 0;
-                    self.cursor.y += 1;
-                    self.refresh(false)
-                }
+                (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
                 (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
                 (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
                 (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
@@ -130,47 +125,50 @@ impl Editor {
         &mut self.contents[self.cursor.y as usize]
     }
 
-    // ================================================================================
-    // 키 입력 핸들러
+    fn add_new_line(&mut self) {
+        self.contents.push(LineBuffer::new());
+        self.cursor.x = 0;
+        self.cursor.y += 1;
+    }
 
-    fn handle_upkey(&mut self) {
+    fn move_up(&mut self) {
         if self.cursor.y > 0 {
             self.cursor.y -= 1;
 
-            let x = self.calibrate_x();
-            self.cursor.x = x;
-            self.current_line().set_cursor(x);
-
-            self.refresh(false);
+            let x = self.cursor.x as i32;
+            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
+            self.cursor.x = new_x;
+            self.current_line().set_byte_index(new_byte_index);
         }
+    }
 
+    fn move_down(&mut self) {
+        if self.contents.len() - 1 > self.cursor.y as usize {
+            self.cursor.y += 1;
+
+            let x = self.cursor.x as i32;
+            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
+            self.cursor.x = new_x;
+            self.current_line().set_byte_index(new_byte_index);
+        }
+    }
+
+    // ================================================================================
+    // 키 입력 핸들러
+
+    fn handle_enterkey(&mut self) {
+        self.add_new_line();
+        self.refresh(false);
+    }
+
+    fn handle_upkey(&mut self) {
+        self.move_up();
         self.refresh(false);
     }
 
     fn handle_downkey(&mut self) {
-        if self.contents.len() - 1 > self.cursor.y as usize {
-            self.cursor.y += 1;
-
-            let x = self.calibrate_x();
-            self.cursor.x = x;
-            self.current_line().set_cursor(x);
-
-            self.refresh(false);
-        }
-    }
-
-    /**
-        다른 라인으로 넘어갔을 때 x위치 보정
-        한글 등 너비가 1이 아닌 문자들이 있을 수도 있기 때문
-    */
-    fn calibrate_x(&mut self) -> u16 {
-        if self.cursor.x > self.current_line().len() as u16 {
-            self.cursor.x = self.current_line().len() as u16;
-        }
-
-        let x = self.cursor.x;
-        let new_x = self.current_line().index_from_width(x);
-        new_x
+        self.move_down();
+        self.refresh(false);
     }
 
     fn handle_leftkey(&mut self, refresh: bool) {
@@ -218,5 +216,29 @@ fn screen_height() -> u16 {
     match size() {
         Ok((_cols, rows)) => rows,
         Err(error) => panic!("screen_width: {:?}", error),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_move_updown() {
+        let mut ed = Editor::new();
+        ed.current_line().push_str("가나다");
+        ed.add_new_line();
+        ed.current_line().push_str("abc");
+        ed.cursor.x = 3;
+
+        assert_eq!(ed.current_line().get_byte_index(), 3);
+
+        ed.move_up();
+        assert_eq!(ed.current_line().get_byte_index(), 3);
+        assert_eq!(ed.cursor.x, 2);
+
+        ed.move_down();
+        assert_eq!(ed.current_line().get_byte_index(), 2);
+        assert_eq!(ed.cursor.x, 2);
     }
 }
