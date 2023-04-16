@@ -135,10 +135,10 @@ impl Editor {
         if self.cursor.y > 0 {
             self.cursor.y -= 1;
 
-            let x = self.calibrate_x();
-            info!("Up: new x = {}", x);
-            self.cursor.x = x;
-            self.current_line().set_byte_index(x);
+            let x = self.cursor.x as i32;
+            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
+            self.cursor.x = new_x;
+            self.current_line().set_byte_index(new_byte_index);
         }
     }
 
@@ -146,24 +146,11 @@ impl Editor {
         if self.contents.len() - 1 > self.cursor.y as usize {
             self.cursor.y += 1;
 
-            let x = self.calibrate_x();
-            self.cursor.x = x;
-            self.current_line().set_byte_index(x);
+            let x = self.cursor.x as i32;
+            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
+            self.cursor.x = new_x;
+            self.current_line().set_byte_index(new_byte_index);
         }
-    }
-
-    /**
-        다른 라인으로 넘어갔을 때 x위치 보정
-        한글 등 너비가 1이 아닌 문자들이 있을 수도 있기 때문
-    */
-    fn calibrate_x(&mut self) -> u16 {
-        if self.cursor.x > self.current_line().len() as u16 {
-            self.cursor.x = self.current_line().len() as u16;
-        }
-
-        let x = self.cursor.x;
-        let new_x = self.current_line().index_from_width(x);
-        new_x
     }
 
     // ================================================================================
@@ -239,16 +226,19 @@ mod test {
     #[test]
     fn test_move_updown() {
         let mut ed = Editor::new();
-        ed.current_line().push_str("가나다라");
+        ed.current_line().push_str("가나다");
         ed.add_new_line();
-        ed.current_line().push_str("abcde");
+        ed.current_line().push_str("abc");
+        ed.cursor.x = 3;
 
-        assert_eq!(ed.current_line().get_byte_index(), 5);
+        assert_eq!(ed.current_line().get_byte_index(), 3);
 
         ed.move_up();
-        assert_eq!(ed.current_line().get_byte_index(), 4);
+        assert_eq!(ed.current_line().get_byte_index(), 3);
+        assert_eq!(ed.cursor.x, 2);
 
         ed.move_down();
-        assert_eq!(ed.current_line().get_byte_index(), 4);
+        assert_eq!(ed.current_line().get_byte_index(), 2);
+        assert_eq!(ed.cursor.x, 2);
     }
 }

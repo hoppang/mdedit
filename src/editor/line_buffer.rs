@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::{cmp, fmt};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -162,21 +163,41 @@ impl LineBuffer {
         (self.byte_index as u16, head_width as u16)
     }
 
-    // width 는 화면상의 길이, length 는 바이트 단위 길이
-    pub fn index_from_width(&self, width: u16) -> u16 {
-        let mut byte_index: u16 = 0;
+    /**
+        가로 위치(x)를 인자로 넣어주면, 캐릭터 경계에 맞춰서 cursor_x / byte_index 를 구한다.
+        cursor_x 는 화면상의 길이, byte_index 는 바이트 단위 길이
+    */
+    pub fn cursor_and_byteindex(&self, cursor_x: i32) -> (u16, u16) {
+        let mut x: i32 = cursor_x;
+        let mut byte_index: usize = 0;
+        let mut prev_c_len: usize = 0;
 
         for c in self.s.chars() {
-            if byte_index + 1 >= width {
-                break;
+            let c_width = c.width_cjk().unwrap() as i32;
+
+            match x {
+                0 => break,
+                n if n < 0 => {
+                    byte_index -= prev_c_len;
+                    break;
+                }
+                _ => (),
             }
 
-            byte_index += c.width_cjk().unwrap() as u16;
+            x -= c_width;
+            byte_index += c.len_utf8();
+            prev_c_len = c.len_utf8() as usize;
         }
 
-        byte_index
+        let new_cursor_x: u16 = std::cmp::min(
+            (cursor_x + x).try_into().unwrap(),
+            self.s.width_cjk().try_into().unwrap(),
+        );
+
+        (new_cursor_x, byte_index as u16)
     }
 
+    #[cfg(test)]
     pub fn get_byte_index(&self) -> usize {
         self.byte_index
     }
@@ -267,11 +288,13 @@ mod test {
     #[test]
     fn test_width_conv() {
         // unicode-width 를 bytes-length 로 변환하는 코드 테스트.
-        let s: LineBuffer = LineBuffer::from("안녕하세요");
+        let s: LineBuffer = LineBuffer::from("가b다");
 
-        assert_eq!(s.index_from_width(6), 6);
-        assert_eq!(s.index_from_width(7), 6);
-        assert_eq!(s.index_from_width(0), 0);
-        assert_eq!(s.index_from_width(9), 8);
+        assert_eq!(s.cursor_and_byteindex(0), (0, 0));
+        assert_eq!(s.cursor_and_byteindex(1), (0, 0));
+        assert_eq!(s.cursor_and_byteindex(2), (2, 3));
+        assert_eq!(s.cursor_and_byteindex(3), (3, 4));
+        assert_eq!(s.cursor_and_byteindex(5), (5, 7));
+        assert_eq!(s.cursor_and_byteindex(10), (5, 7));
     }
 }
