@@ -55,6 +55,7 @@ impl LineBuffer {
         self.s.len()
     }
 
+    #[cfg(test)]
     pub fn width(&self) -> usize {
         self.s.width_cjk()
     }
@@ -93,19 +94,30 @@ impl LineBuffer {
     Mutable functions
     */
 
-    pub fn push(&mut self, ch: char) {
-        self.s.push(ch);
-        self.byte_index = self.s.len();
-    }
-
     #[cfg(test)]
     pub fn push_str(&mut self, s: &str) {
         self.s.push_str(s);
         self.byte_index = self.s.len();
     }
 
-    pub fn pop(&mut self) {
-        self.s.pop();
+    /**
+        현재 byte_index 위치에 글자를 집어넣는다.
+    */
+    pub fn insert(&mut self, ch: char) {
+        self.s.insert(self.byte_index, ch);
+        self.byte_index += ch.len_utf8();
+    }
+
+    /**
+        지정한 위치의 이전 글자를 삭제한다. (지정한 위치가 아님)
+    */
+    pub fn remove(&mut self) -> char {
+        if self.s.is_empty() {
+            '\0'
+        } else {
+            self.prev();
+            self.s.remove(self.byte_index)
+        }
     }
 
     pub fn next(&mut self) -> Result<usize, LineErr> {
@@ -296,5 +308,42 @@ mod test {
         assert_eq!(s.cursor_and_byteindex(3), (3, 4));
         assert_eq!(s.cursor_and_byteindex(5), (5, 7));
         assert_eq!(s.cursor_and_byteindex(10), (5, 7));
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut s1: LineBuffer = LineBuffer::from("potato튀김");
+
+        s1.byte_index = 10;
+        s1.remove();
+        assert_eq!(s1.s, "potato튀");
+
+        s1.byte_index = 2;
+        s1.remove();
+        assert_eq!(s1.s, "ptato튀");
+
+        s1.byte_index = 5;
+        s1.remove();
+        assert_eq!(s1.s, "ptat튀");
+
+        s1.remove();
+        assert_eq!(s1.s, "pta튀");
+
+        let mut s2: LineBuffer = LineBuffer::new();
+        s2.remove();
+        assert_eq!(s2.s, "");
+    }
+
+    #[test]
+    fn test_insert() {
+        let mut s: LineBuffer = LineBuffer::new();
+
+        s.insert('밥');
+        s.insert('b');
+        assert_eq!(s.s, "밥b");
+
+        s.byte_index = 3;
+        s.insert('줘');
+        assert_eq!(s.s, "밥줘b");
     }
 }

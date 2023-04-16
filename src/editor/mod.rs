@@ -1,6 +1,7 @@
 use crossterm::terminal::size;
 use log::info;
 use std::io::{Stdout, Write};
+use unicode_width::UnicodeWidthChar;
 
 mod line_buffer;
 use line_buffer::LineBuffer;
@@ -60,16 +61,8 @@ impl Editor {
             match read_char()? {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
                 (_, KeyCode::F(10)) => break,
-                (_, KeyCode::Backspace) => {
-                    self.current_line().pop();
-                    self.cursor.x = self.current_line().width() as u16;
-                    self.refresh(true)
-                }
-                (_, KeyCode::Char(c)) => {
-                    self.current_line().push(c);
-                    self.cursor.x = self.current_line().width() as u16;
-                    self.refresh(true)
-                }
+                (_, KeyCode::Backspace) => self.handle_backspace(),
+                (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
                 (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
                 (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
                 (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
@@ -156,9 +149,21 @@ impl Editor {
     // ================================================================================
     // 키 입력 핸들러
 
+    fn handle_input_char(&mut self, ch: char) {
+        self.current_line().insert(ch);
+        self.cursor.move_right(ch.width_cjk().unwrap() as u16);
+        self.refresh(true);
+    }
+
     fn handle_enterkey(&mut self) {
         self.add_new_line();
         self.refresh(false);
+    }
+
+    fn handle_backspace(&mut self) {
+        let deleted = self.current_line().remove();
+        self.cursor.x -= deleted.width_cjk().unwrap() as u16;
+        self.refresh(true);
     }
 
     fn handle_upkey(&mut self) {
