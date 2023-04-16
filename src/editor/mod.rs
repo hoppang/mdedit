@@ -41,7 +41,7 @@ pub struct Editor {
 
 impl Editor {
     // 기본값
-    pub fn default() -> Editor {
+    pub fn new() -> Editor {
         info!("Create new editor object");
         Editor {
             screen: std::io::stdout(),

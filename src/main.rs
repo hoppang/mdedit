@@ -25,6 +25,6 @@ fn main() -> Result<(), std::io::Error> {
     setup_log();
     let (cols, rows) = size()?;
     info!("cols = {}, rows = {}", cols, rows);
-    let mut ed = Editor::default();
+    let mut ed = Editor::new();
     ed.run()
 }
