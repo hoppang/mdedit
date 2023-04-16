@@ -70,12 +70,7 @@ impl Editor {
                     self.cursor.x = self.current_line().width() as u16;
                     self.refresh(true)
                 }
-                (KeyModifiers::NONE, KeyCode::Enter) => {
-                    self.contents.push(LineBuffer::new());
-                    self.cursor.x = 0;
-                    self.cursor.y += 1;
-                    self.refresh(false)
-                }
+                (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
                 (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
                 (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
                 (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
@@ -130,32 +125,30 @@ impl Editor {
         &mut self.contents[self.cursor.y as usize]
     }
 
-    // ================================================================================
-    // 키 입력 핸들러
+    fn add_new_line(&mut self) {
+        self.contents.push(LineBuffer::new());
+        self.cursor.x = 0;
+        self.cursor.y += 1;
+    }
 
-    fn handle_upkey(&mut self) {
+    fn move_up(&mut self) {
         if self.cursor.y > 0 {
             self.cursor.y -= 1;
 
             let x = self.calibrate_x();
+            info!("Up: new x = {}", x);
             self.cursor.x = x;
-            self.current_line().set_cursor(x);
-
-            self.refresh(false);
+            self.current_line().set_byte_index(x);
         }
-
-        self.refresh(false);
     }
 
-    fn handle_downkey(&mut self) {
+    fn move_down(&mut self) {
         if self.contents.len() - 1 > self.cursor.y as usize {
             self.cursor.y += 1;
 
             let x = self.calibrate_x();
             self.cursor.x = x;
-            self.current_line().set_cursor(x);
-
-            self.refresh(false);
+            self.current_line().set_byte_index(x);
         }
     }
 
@@ -171,6 +164,24 @@ impl Editor {
         let x = self.cursor.x;
         let new_x = self.current_line().index_from_width(x);
         new_x
+    }
+
+    // ================================================================================
+    // 키 입력 핸들러
+
+    fn handle_enterkey(&mut self) {
+        self.add_new_line();
+        self.refresh(false);
+    }
+
+    fn handle_upkey(&mut self) {
+        self.move_up();
+        self.refresh(false);
+    }
+
+    fn handle_downkey(&mut self) {
+        self.move_down();
+        self.refresh(false);
     }
 
     fn handle_leftkey(&mut self, refresh: bool) {
@@ -218,5 +229,26 @@ fn screen_height() -> u16 {
     match size() {
         Ok((_cols, rows)) => rows,
         Err(error) => panic!("screen_width: {:?}", error),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_move_updown() {
+        let mut ed = Editor::new();
+        ed.current_line().push_str("가나다라");
+        ed.add_new_line();
+        ed.current_line().push_str("abcde");
+
+        assert_eq!(ed.current_line().get_byte_index(), 5);
+
+        ed.move_up();
+        assert_eq!(ed.current_line().get_byte_index(), 4);
+
+        ed.move_down();
+        assert_eq!(ed.current_line().get_byte_index(), 4);
     }
 }
