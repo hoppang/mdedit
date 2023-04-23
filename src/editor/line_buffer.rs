@@ -30,7 +30,6 @@ impl LineBuffer {
         }
     }
 
-    #[cfg(test)]
     pub fn from(arg: &str) -> LineBuffer {
         LineBuffer {
             s: String::from(arg),
@@ -88,6 +87,10 @@ impl LineBuffer {
         } else {
             self.current_char().width_cjk().unwrap()
         }
+    }
+
+    pub fn get_buffer(&self) -> &String {
+        &self.s
     }
 
     /*
