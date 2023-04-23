@@ -1,6 +1,8 @@
 use crossterm::terminal::size;
 use log::info;
-use std::io::{Stdout, Write};
+use std::env;
+use std::fs::File;
+use std::io::{self, BufRead, Stdout, Write};
 use unicode_width::UnicodeWidthChar;
 
 mod line_buffer;
@@ -34,6 +36,12 @@ impl Cursor {
     }
 }
 
+enum RefreshOption {
+    None,
+    Line,
+    Screen,
+}
+
 pub struct Editor {
     screen: Stdout,
     contents: Vec<LineBuffer>,
@@ -44,22 +52,31 @@ impl Editor {
     // 기본값
     pub fn new() -> Editor {
         info!("Create new editor object");
-        Editor {
+
+        let mut ed = Editor {
             screen: std::io::stdout(),
             cursor: Cursor { x: 0, y: 0 },
             contents: Vec::from([LineBuffer::new()]),
+        };
+
+        let args: Vec<String> = env::args().collect();
+        if args.len() == 2 {
+            info!("Open file {:?}", args[1]);
+            ed.open_file(&args[1])
         }
+
+        ed
     }
 
     pub fn run(&mut self) -> Result<()> {
-        // let mut w = &mut self.screen;
         execute!(&self.screen, terminal::EnterAlternateScreen)?;
         terminal::enable_raw_mode()?;
-        self.refresh(false);
+        self.refresh(RefreshOption::Screen);
 
         loop {
             match read_char()? {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
+                (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
                 (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => self.handle_backspace(),
                 (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
@@ -76,14 +93,44 @@ impl Editor {
         terminal::disable_raw_mode()
     }
 
+    fn open_file(&mut self, filename: &String) {
+        self.contents.clear();
+
+        let file = File::open(filename).unwrap();
+        for line in io::BufReader::new(file).lines() {
+            info!("line = {:?}", line);
+            // let text = line.unwrap();
+            self.contents.push(LineBuffer::from(&line.unwrap()));
+        }
+    }
+
     /**
      * 현재 커서가 있는 한 줄 갱신
      */
-    fn refresh(&mut self, draw_line: bool) {
+    fn refresh(&mut self, opt: RefreshOption) {
         queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
 
-        if draw_line {
-            self.current_line().draw(screen_width());
+        let mut line_count = 0;
+
+        match opt {
+            RefreshOption::Line => self.current_line().draw(screen_width()),
+            RefreshOption::Screen => {
+                for line in &self.contents {
+                    info!(
+                        "화면에 그리기: x {} y {} line {:?}",
+                        line_count, self.cursor.y, line
+                    );
+                    queue!(&self.screen, cursor::MoveTo(0, line_count))
+                        .expect("Failed to move cursor");
+                    line.draw(screen_width());
+                    line_count += 1;
+                }
+
+                self.contents.push(LineBuffer::new());
+                queue!(&self.screen, cursor::MoveTo(0, line_count)).expect("Failed to move cursor");
+                self.cursor.y = line_count;
+            }
+            _ => {}
         }
 
         // 디버그 정보 출력
@@ -152,28 +199,28 @@ impl Editor {
     fn handle_input_char(&mut self, ch: char) {
         self.current_line().insert(ch);
         self.cursor.move_right(ch.width_cjk().unwrap() as u16);
-        self.refresh(true);
+        self.refresh(RefreshOption::Line);
     }
 
     fn handle_enterkey(&mut self) {
         self.add_new_line();
-        self.refresh(false);
+        self.refresh(RefreshOption::None);
     }
 
     fn handle_backspace(&mut self) {
         let deleted = self.current_line().remove();
         self.cursor.x -= deleted.width_cjk().unwrap() as u16;
-        self.refresh(true);
+        self.refresh(RefreshOption::Line);
     }
 
     fn handle_upkey(&mut self) {
         self.move_up();
-        self.refresh(false);
+        self.refresh(RefreshOption::None);
     }
 
     fn handle_downkey(&mut self) {
         self.move_down();
-        self.refresh(false);
+        self.refresh(RefreshOption::None);
     }
 
     fn handle_leftkey(&mut self, refresh: bool) {
@@ -182,7 +229,7 @@ impl Editor {
         self.cursor.move_left(char_width);
 
         if refresh {
-            self.refresh(false)
+            self.refresh(RefreshOption::None)
         }
     }
 
@@ -192,7 +239,15 @@ impl Editor {
         let _no_use = self.current_line().next();
 
         if refresh {
-            self.refresh(false)
+            self.refresh(RefreshOption::None)
+        }
+    }
+
+    fn handle_save(&self) {
+        let mut file = File::create("./test.txt").unwrap();
+
+        for s in &self.contents {
+            writeln!(&mut file, "{}", s.get_buffer()).unwrap();
         }
     }
 }
