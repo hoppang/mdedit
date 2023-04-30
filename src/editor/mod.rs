@@ -1,4 +1,3 @@
-use crossterm::terminal::size;
 use log::info;
 use std::env;
 use std::fs::File;
@@ -11,13 +10,12 @@ use line_buffer::LineBuffer;
 mod simple_dialog;
 use simple_dialog::SimpleDialog;
 
-pub use crossterm::{
+use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
-    style::{self, Attribute, Color, Stylize},
-    terminal::{self, ClearType},
-    Command, Result,
+    terminal::{self, size, Clear, ClearType},
+    Result,
 };
 
 struct Cursor {
@@ -49,6 +47,7 @@ pub struct Editor {
     screen: Stdout,
     contents: Vec<LineBuffer>,
     cursor: Cursor,
+    popup: Option<SimpleDialog>,
 }
 
 impl Editor {
@@ -60,6 +59,7 @@ impl Editor {
             screen: std::io::stdout(),
             cursor: Cursor { x: 0, y: 0 },
             contents: Vec::from([LineBuffer::new()]),
+            popup: None,
         };
 
         let args: Vec<String> = env::args().collect();
@@ -77,24 +77,44 @@ impl Editor {
         self.refresh(RefreshOption::Screen);
 
         loop {
-            match read_char()? {
+            let (modifier, code) = read_char().unwrap();
+
+            // 글로벌 키
+            match (modifier, code) {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
-                (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
-                (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
                 (_, KeyCode::F(10)) => break,
-                (_, KeyCode::Backspace) => self.handle_backspace(),
-                (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
-                (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
-                (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
-                (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
-                (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
-                (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
-                _ => {} // do nothing
+                _ => {}
+            }
+
+            match &self.popup {
+                None => self.handle_keyinput(modifier, code),
+                Some(p) => {
+                    let closed = p.handle_keyinput(modifier, code);
+                    if closed {
+                        self.popup = None;
+                        self.refresh(RefreshOption::Screen)
+                    }
+                }
             }
         }
 
         execute!(&self.screen, terminal::LeaveAlternateScreen)?;
         terminal::disable_raw_mode()
+    }
+
+    fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) {
+        match (modifier, code) {
+            (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
+            (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
+            (_, KeyCode::Backspace) => self.handle_backspace(),
+            (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
+            (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
+            (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
+            (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
+            (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
+            (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
+            _ => {} // do nothing
+        }
     }
 
     fn open_file(&mut self, filename: &String) {
@@ -207,6 +227,7 @@ impl Editor {
         dialog.draw(String::from(
             "mdedit: simple text editor inspired by MS-DOS EDIT",
         ));
+        self.popup = Some(dialog);
         self.refresh(RefreshOption::None);
     }
 

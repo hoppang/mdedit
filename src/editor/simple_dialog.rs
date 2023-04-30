@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor};
 use crossterm::{cursor, queue};
 use std::io::Stdout;
@@ -39,6 +40,16 @@ impl SimpleDialog {
         self.draw_message(&msg);
 
         queue!(&self.screen, ResetColor).unwrap();
+    }
+
+    /**
+     *  return: 팝업 종료 여부
+     */
+    pub fn handle_keyinput(&self, modifier: KeyModifiers, code: KeyCode) -> bool {
+        match (modifier, code) {
+            (KeyModifiers::NONE, KeyCode::Esc) => true,
+            _ => false,
+        }
     }
 
     fn draw_top_line(&self) {
