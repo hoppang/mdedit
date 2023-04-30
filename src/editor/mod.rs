@@ -1,4 +1,3 @@
-use crossterm::terminal::size;
 use log::info;
 use std::env;
 use std::fs::File;
@@ -8,13 +7,15 @@ use unicode_width::UnicodeWidthChar;
 mod line_buffer;
 use line_buffer::LineBuffer;
 
-pub use crossterm::{
+mod simple_dialog;
+use simple_dialog::SimpleDialog;
+
+use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
-    style::{self, Attribute, Color, Stylize},
-    terminal::{self, ClearType},
-    Command, Result,
+    terminal::{self, size, Clear, ClearType},
+    Result,
 };
 
 struct Cursor {
@@ -46,6 +47,7 @@ pub struct Editor {
     screen: Stdout,
     contents: Vec<LineBuffer>,
     cursor: Cursor,
+    popup: Option<SimpleDialog>,
 }
 
 impl Editor {
@@ -57,6 +59,7 @@ impl Editor {
             screen: std::io::stdout(),
             cursor: Cursor { x: 0, y: 0 },
             contents: Vec::from([LineBuffer::new()]),
+            popup: None,
         };
 
         let args: Vec<String> = env::args().collect();
@@ -74,23 +77,44 @@ impl Editor {
         self.refresh(RefreshOption::Screen);
 
         loop {
-            match read_char()? {
+            let (modifier, code) = read_char().unwrap();
+
+            // 글로벌 키
+            match (modifier, code) {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
-                (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
                 (_, KeyCode::F(10)) => break,
-                (_, KeyCode::Backspace) => self.handle_backspace(),
-                (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
-                (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
-                (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
-                (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
-                (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
-                (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
-                _ => {} // do nothing
+                _ => {}
+            }
+
+            match &self.popup {
+                None => self.handle_keyinput(modifier, code),
+                Some(p) => {
+                    let closed = p.handle_keyinput(modifier, code);
+                    if closed {
+                        self.popup = None;
+                        self.refresh(RefreshOption::Screen)
+                    }
+                }
             }
         }
 
         execute!(&self.screen, terminal::LeaveAlternateScreen)?;
         terminal::disable_raw_mode()
+    }
+
+    fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) {
+        match (modifier, code) {
+            (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
+            (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
+            (_, KeyCode::Backspace) => self.handle_backspace(),
+            (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
+            (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
+            (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
+            (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
+            (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
+            (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
+            _ => {} // do nothing
+        }
     }
 
     fn open_file(&mut self, filename: &String) {
@@ -115,6 +139,9 @@ impl Editor {
         match opt {
             RefreshOption::Line => self.current_line().draw(screen_width()),
             RefreshOption::Screen => {
+                queue!(&self.screen, Clear(ClearType::All), cursor::MoveTo(0, 0))
+                    .expect("Failed to move cursor");
+
                 for line in &self.contents {
                     info!(
                         "화면에 그리기: x {} y {} line {:?}",
@@ -126,9 +153,8 @@ impl Editor {
                     line_count += 1;
                 }
 
-                self.contents.push(LineBuffer::new());
-                queue!(&self.screen, cursor::MoveTo(0, line_count)).expect("Failed to move cursor");
-                self.cursor.y = line_count;
+                queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
+                    .expect("Failed to move cursor");
             }
             _ => {}
         }
@@ -195,6 +221,15 @@ impl Editor {
 
     // ================================================================================
     // 키 입력 핸들러
+
+    fn handle_help(&mut self) {
+        let dialog = SimpleDialog::new();
+        dialog.draw(String::from(
+            "mdedit: simple text editor inspired by MS-DOS EDIT",
+        ));
+        self.popup = Some(dialog);
+        self.refresh(RefreshOption::None);
+    }
 
     fn handle_input_char(&mut self, ch: char) {
         self.current_line().insert(ch);
