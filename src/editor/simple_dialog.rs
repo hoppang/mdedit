@@ -91,7 +91,7 @@ impl SimpleDialog {
         queue!(&self.screen, cursor::MoveTo(x, self.y + 1)).expect("Failed to draw message");
         print!("{}", msg);
 
-        let close_msg = String::from("You cannot close this dialog 🤣");
+        let close_msg = String::from("Press ESC to close 😊");
         let btn_x = x_center - (close_msg.width_cjk() / 2) as u16;
 
         queue!(&self.screen, cursor::MoveTo(btn_x, self.y + 2)).expect("Failed to draw message");
