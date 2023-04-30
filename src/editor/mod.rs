@@ -8,6 +8,9 @@ use unicode_width::UnicodeWidthChar;
 mod line_buffer;
 use line_buffer::LineBuffer;
 
+mod simple_dialog;
+use simple_dialog::SimpleDialog;
+
 pub use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
@@ -77,6 +80,7 @@ impl Editor {
             match read_char()? {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
                 (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
+                (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
                 (_, KeyCode::F(10)) => break,
                 (_, KeyCode::Backspace) => self.handle_backspace(),
                 (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
@@ -195,6 +199,14 @@ impl Editor {
 
     // ================================================================================
     // 키 입력 핸들러
+
+    fn handle_help(&mut self) {
+        let dialog = SimpleDialog::new();
+        dialog.draw(String::from(
+            "mdedit: simple text editor inspired by MS-DOS EDIT",
+        ));
+        self.refresh(RefreshOption::None);
+    }
 
     fn handle_input_char(&mut self, ch: char) {
         self.current_line().insert(ch);
