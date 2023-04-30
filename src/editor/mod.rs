@@ -119,6 +119,9 @@ impl Editor {
         match opt {
             RefreshOption::Line => self.current_line().draw(screen_width()),
             RefreshOption::Screen => {
+                queue!(&self.screen, Clear(ClearType::All), cursor::MoveTo(0, 0))
+                    .expect("Failed to move cursor");
+
                 for line in &self.contents {
                     info!(
                         "화면에 그리기: x {} y {} line {:?}",
@@ -130,9 +133,8 @@ impl Editor {
                     line_count += 1;
                 }
 
-                self.contents.push(LineBuffer::new());
-                queue!(&self.screen, cursor::MoveTo(0, line_count)).expect("Failed to move cursor");
-                self.cursor.y = line_count;
+                queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
+                    .expect("Failed to move cursor");
             }
             _ => {}
         }
