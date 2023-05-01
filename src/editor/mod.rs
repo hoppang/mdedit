@@ -1,7 +1,11 @@
+mod ui {
+    pub mod menu_bar;
+}
 use log::info;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, Stdout, Write};
+use ui::menu_bar::MenuBar;
 use unicode_width::UnicodeWidthChar;
 
 mod line_buffer;
@@ -48,6 +52,7 @@ pub struct Editor {
     contents: Vec<LineBuffer>,
     cursor: Cursor,
     popup: Option<SimpleDialog>,
+    menu_bar: MenuBar,
 }
 
 impl Editor {
@@ -60,6 +65,7 @@ impl Editor {
             cursor: Cursor { x: 0, y: 0 },
             contents: Vec::from([LineBuffer::new()]),
             popup: None,
+            menu_bar: MenuBar::new(),
         };
 
         let args: Vec<String> = env::args().collect();
@@ -139,8 +145,7 @@ impl Editor {
         match opt {
             RefreshOption::Line => self.current_line().draw(screen_width),
             RefreshOption::Screen => {
-                queue!(&self.screen, Clear(ClearType::All), cursor::MoveTo(0, 0))
-                    .expect("Failed to move cursor");
+                queue!(&self.screen, Clear(ClearType::All)).unwrap();
 
                 for line in &self.contents {
                     info!(
@@ -155,6 +160,8 @@ impl Editor {
 
                 queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
                     .expect("Failed to move cursor");
+
+                self.menu_bar.draw(&self.screen, screen_width);
             }
             _ => {}
         }
