@@ -355,19 +355,19 @@ mod test {
     #[test]
     fn test_move_updown() {
         let mut ed = Editor::new();
-        ed.current_line().push_str("가나다");
+        ed.current_line().unwrap().push_str("가나다");
         ed.add_new_line();
-        ed.current_line().push_str("abc");
+        ed.current_line().unwrap().push_str("abc");
         ed.cursor.x = 3;
 
-        assert_eq!(ed.current_line().get_byte_index(), 3);
+        assert_eq!(ed.current_line().unwrap().get_byte_index(), 3);
 
         ed.move_up();
-        assert_eq!(ed.current_line().get_byte_index(), 3);
+        assert_eq!(ed.current_line().unwrap().get_byte_index(), 3);
         assert_eq!(ed.cursor.x, 2);
 
         ed.move_down();
-        assert_eq!(ed.current_line().get_byte_index(), 2);
+        assert_eq!(ed.current_line().unwrap().get_byte_index(), 2);
         assert_eq!(ed.cursor.x, 2);
     }
 }
