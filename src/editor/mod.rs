@@ -123,7 +123,6 @@ impl Editor {
         let file = File::open(filename).unwrap();
         for line in io::BufReader::new(file).lines() {
             info!("line = {:?}", line);
-            // let text = line.unwrap();
             self.contents.push(LineBuffer::from(&line.unwrap()));
         }
     }
@@ -135,9 +134,10 @@ impl Editor {
         queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
 
         let mut line_count = 0;
+        let screen_width = screen_width();
 
         match opt {
-            RefreshOption::Line => self.current_line().draw(screen_width()),
+            RefreshOption::Line => self.current_line().draw(screen_width),
             RefreshOption::Screen => {
                 queue!(&self.screen, Clear(ClearType::All), cursor::MoveTo(0, 0))
                     .expect("Failed to move cursor");
@@ -149,7 +149,7 @@ impl Editor {
                     );
                     queue!(&self.screen, cursor::MoveTo(0, line_count))
                         .expect("Failed to move cursor");
-                    line.draw(screen_width());
+                    line.draw(screen_width);
                     line_count += 1;
                 }
 
