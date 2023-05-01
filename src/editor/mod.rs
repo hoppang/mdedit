@@ -94,7 +94,7 @@ impl Editor {
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
             (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
             (_, KeyCode::Backspace) => self.handle_backspace(),
-            (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
+            (_, KeyCode::Char(c)) => self.handle_input_char(c),
             (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
             (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(),
             (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(),
