@@ -46,10 +46,7 @@ impl SimpleDialog {
      *  return: 팝업 종료 여부
      */
     pub fn handle_keyinput(&self, modifier: KeyModifiers, code: KeyCode) -> bool {
-        match (modifier, code) {
-            (KeyModifiers::NONE, KeyCode::Esc) => true,
-            _ => false,
-        }
+        matches!((modifier, code), (KeyModifiers::NONE, KeyCode::Esc))
     }
 
     fn draw_top_line(&self) {

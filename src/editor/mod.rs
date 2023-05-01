@@ -5,7 +5,7 @@ mod ui {
 }
 
 use line_buffer::LineBuffer;
-use log::info;
+use log::{error, info};
 use simple_dialog::SimpleDialog;
 use std::env;
 use std::fs::File;
@@ -142,7 +142,11 @@ impl Editor {
         let screen_width = screen_width();
 
         match opt {
-            RefreshOption::Line => self.current_line().draw(screen_width),
+            RefreshOption::Line => {
+                if let Some(line) = self.current_line() {
+                    line.draw(screen_width)
+                }
+            }
             RefreshOption::Screen => {
                 queue!(&self.screen, Clear(ClearType::All)).unwrap();
 
@@ -156,9 +160,6 @@ impl Editor {
                     line.draw(screen_width);
                     line_count += 1;
                 }
-
-                queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
-                    .expect("Failed to move cursor");
 
                 self.menu_bar.draw(&self.screen, screen_width);
             }
@@ -186,15 +187,19 @@ impl Editor {
         let x = self.cursor.x;
         let y = self.cursor.y;
         print!(
-            "current_line: {:?} cx {:?} cy {}    ",
+            "current_line: {:?} cx {:?} cy {:?}",
             self.current_line(),
             x,
             y
         );
     }
 
-    fn current_line(&mut self) -> &mut LineBuffer {
-        &mut self.contents[self.cursor.y as usize]
+    fn current_line(&mut self) -> Option<&mut LineBuffer> {
+        if self.cursor.y < self.contents.len() as u16 {
+            Some(&mut self.contents[self.cursor.y as usize])
+        } else {
+            None
+        }
     }
 
     fn add_new_line(&mut self) {
@@ -206,23 +211,32 @@ impl Editor {
     fn move_up(&mut self) {
         if self.cursor.y > 0 {
             self.cursor.y -= 1;
-
-            let x = self.cursor.x as i32;
-            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
-            self.cursor.x = new_x;
-            self.current_line().set_byte_index(new_byte_index);
+            self.move_updown();
         }
     }
 
     fn move_down(&mut self) {
         if self.contents.len() - 1 > self.cursor.y as usize {
             self.cursor.y += 1;
-
-            let x = self.cursor.x as i32;
-            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
-            self.cursor.x = new_x;
-            self.current_line().set_byte_index(new_byte_index);
+            self.move_updown();
         }
+    }
+
+    fn move_updown(&mut self) {
+        let x = self.cursor.x as i32;
+        let new_x = match self.current_line() {
+            Some(line) => {
+                let (new_x, new_byte_index) = line.cursor_and_byteindex(x);
+                line.set_byte_index(new_byte_index);
+                new_x
+            }
+            None => {
+                error!("current_line is None: y {:?}", self.cursor.y);
+                0
+            }
+        };
+
+        self.cursor.x = new_x;
     }
 
     // ================================================================================
@@ -238,9 +252,12 @@ impl Editor {
     }
 
     fn handle_input_char(&mut self, ch: char) {
-        self.current_line().insert(ch);
-        self.cursor.move_right(ch.width_cjk().unwrap() as u16);
-        self.refresh(RefreshOption::Line);
+        if let Some(line) = self.current_line() {
+            line.insert(ch);
+            self.cursor
+                .move_right(screen_width() as u16, ch.width_cjk().unwrap() as u16);
+            self.refresh(RefreshOption::Line);
+        }
     }
 
     fn handle_enterkey(&mut self) {
@@ -249,9 +266,11 @@ impl Editor {
     }
 
     fn handle_backspace(&mut self) {
-        let deleted = self.current_line().remove();
-        self.cursor.x -= deleted.width_cjk().unwrap() as u16;
-        self.refresh(RefreshOption::Line);
+        if let Some(line) = self.current_line() {
+            let deleted = line.remove();
+            self.cursor.x -= deleted.width_cjk().unwrap() as u16;
+            self.refresh(RefreshOption::Line);
+        }
     }
 
     fn handle_upkey(&mut self) {
@@ -265,23 +284,32 @@ impl Editor {
     }
 
     fn handle_leftkey(&mut self, refresh: bool) {
-        self.current_line().prev();
-        let char_width = self.current_line().current_char_width() as u16;
-        self.cursor.move_left(char_width);
+        if let Some(line) = self.current_line() {
+            line.prev();
+            let char_width = line.current_char_width() as u16;
+            self.cursor.move_left(char_width);
 
-        if refresh {
-            self.refresh(RefreshOption::None)
+            if refresh {
+                self.refresh(RefreshOption::None);
+            }
         }
     }
 
     fn handle_rightkey(&mut self, refresh: bool) {
-        let char_width = self.current_line().current_char_width() as u16;
-        self.cursor.move_right(char_width);
-        let _no_use = self.current_line().next();
+        let char_width = match self.current_line() {
+            Some(line) => {
+                let char_width = line.current_char_width() as u16;
+                let _no_use = line.next();
 
-        if refresh {
-            self.refresh(RefreshOption::None)
-        }
+                if refresh {
+                    self.refresh(RefreshOption::None);
+                }
+
+                char_width
+            }
+            None => 0,
+        };
+        self.cursor.move_right(char_width);
     }
 
     fn handle_save(&self) {
