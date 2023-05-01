@@ -96,8 +96,8 @@ impl Editor {
             (_, KeyCode::Backspace) => self.handle_backspace(),
             (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
             (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
-            (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
-            (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
+            (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(),
+            (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(),
             (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
             (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
             _ => {} // do nothing
@@ -279,33 +279,27 @@ impl Editor {
         self.refresh(RefreshOption::None);
     }
 
-    fn handle_leftkey(&mut self, refresh: bool) {
+    fn handle_leftkey(&mut self) {
         if let Some(line) = self.current_line() {
             line.prev();
             let char_width = line.current_char_width() as u16;
             self.cursor.move_left(char_width);
-
-            if refresh {
-                self.refresh(RefreshOption::None);
-            }
+            self.refresh(RefreshOption::None);
         }
     }
 
-    fn handle_rightkey(&mut self, refresh: bool) {
+    fn handle_rightkey(&mut self) {
         let char_width = match self.current_line() {
             Some(line) => {
                 let char_width = line.current_char_width() as u16;
                 let _no_use = line.next();
-
-                if refresh {
-                    self.refresh(RefreshOption::None);
-                }
 
                 char_width
             }
             None => 0,
         };
         self.cursor.move_right(screen_width() as u16, char_width);
+        self.refresh(RefreshOption::None);
     }
 
     fn handle_save(&self) {
