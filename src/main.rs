@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 /**
  * @author Bohun Kim
  */
