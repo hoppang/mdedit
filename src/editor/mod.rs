@@ -1,18 +1,17 @@
+mod line_buffer;
+mod simple_dialog;
 mod ui {
     pub mod menu_bar;
 }
+
+use line_buffer::LineBuffer;
 use log::info;
+use simple_dialog::SimpleDialog;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, Stdout, Write};
 use ui::menu_bar::MenuBar;
 use unicode_width::UnicodeWidthChar;
-
-mod line_buffer;
-use line_buffer::LineBuffer;
-
-mod simple_dialog;
-use simple_dialog::SimpleDialog;
 
 use crossterm::{
     cursor,
