@@ -5,6 +5,7 @@ use crossterm::style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor
 use crossterm::{cursor, queue};
 use log::info;
 use menu_group::MenuGroup;
+use menu_item::MenuItem;
 use std::convert::TryInto;
 use std::io::Stdout;
 
@@ -16,10 +17,14 @@ impl MenuBar {
     pub fn new() -> MenuBar {
         let mut menu_bar = MenuBar { groups: Vec::new() };
 
-        let file_group = MenuGroup::new("File");
+        let mut file_group = MenuGroup::new("File");
+        let exit_item = MenuItem::new("Exit");
+        file_group.add_item(exit_item);
         menu_bar.add_group(file_group);
 
-        let help_group = MenuGroup::new("Help");
+        let mut help_group = MenuGroup::new("Help");
+        let exit_item = MenuItem::new("About");
+        help_group.add_item(exit_item);
         menu_bar.add_group(help_group);
 
         menu_bar
