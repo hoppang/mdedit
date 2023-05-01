@@ -1,9 +1,11 @@
+mod cursor;
 mod line_buffer;
 mod simple_dialog;
 mod ui {
     pub mod menu_bar;
 }
 
+use cursor::Cursor;
 use line_buffer::LineBuffer;
 use log::{error, info};
 use simple_dialog::SimpleDialog;
@@ -14,31 +16,11 @@ use ui::menu_bar::MenuBar;
 use unicode_width::UnicodeWidthChar;
 
 use crossterm::{
-    cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
     terminal::{self, size, Clear, ClearType},
     Result,
 };
-
-struct Cursor {
-    x: u16,
-    y: u16,
-}
-
-impl Cursor {
-    fn move_left(&mut self, x: u16) {
-        if x <= self.x {
-            self.x -= x;
-        }
-    }
-
-    fn move_right(&mut self, x: u16) {
-        if self.x + x <= screen_width() as u16 {
-            self.x += x;
-        }
-    }
-}
 
 enum RefreshOption {
     None,
@@ -61,7 +43,7 @@ impl Editor {
 
         let mut ed = Editor {
             screen: std::io::stdout(),
-            cursor: Cursor { x: 0, y: 0 },
+            cursor: Cursor::new(),
             contents: Vec::from([LineBuffer::new()]),
             popup: None,
             menu_bar: MenuBar::new(),
@@ -136,7 +118,11 @@ impl Editor {
      * 현재 커서가 있는 한 줄 갱신
      */
     fn refresh(&mut self, opt: RefreshOption) {
-        queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
+        queue!(
+            &self.screen,
+            crossterm::cursor::MoveTo(0, self.cursor.screen_y())
+        )
+        .expect("Failed to move cursor");
 
         let mut line_count = 0;
         let screen_width = screen_width();
@@ -153,9 +139,11 @@ impl Editor {
                 for line in &self.contents {
                     info!(
                         "화면에 그리기: x {} y {} line {:?}",
-                        line_count, self.cursor.y, line
+                        line_count,
+                        self.cursor.screen_y(),
+                        line
                     );
-                    queue!(&self.screen, cursor::MoveTo(0, line_count))
+                    queue!(&self.screen, crossterm::cursor::MoveTo(0, line_count))
                         .expect("Failed to move cursor");
                     line.draw(screen_width);
                     line_count += 1;
@@ -169,8 +157,11 @@ impl Editor {
         // 디버그 정보 출력
         self.print_dbgmsg();
 
-        queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
-            .expect("Failed to move cursor");
+        queue!(
+            &self.screen,
+            crossterm::cursor::MoveTo(self.cursor.x, self.cursor.screen_y())
+        )
+        .expect("Failed to move cursor");
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
@@ -181,11 +172,14 @@ impl Editor {
     }
 
     fn print_dbgmsg(&mut self) {
-        queue!(&self.screen, cursor::MoveTo(0, screen_height() - 1))
-            .expect("Failed to move cursor");
+        queue!(
+            &self.screen,
+            crossterm::cursor::MoveTo(0, screen_height() - 1)
+        )
+        .expect("Failed to move cursor");
 
         let x = self.cursor.x;
-        let y = self.cursor.y;
+        let y = self.cursor.screen_y();
         print!(
             "current_line: {:?} cx {:?} cy {:?}",
             self.current_line(),
@@ -195,34 +189,32 @@ impl Editor {
     }
 
     fn current_line(&mut self) -> Option<&mut LineBuffer> {
-        if self.cursor.y < self.contents.len() as u16 {
-            Some(&mut self.contents[self.cursor.y as usize])
+        if self.cursor.get_y() < self.contents.len() as u16 {
+            Some(&mut self.contents[self.cursor.get_y() as usize])
         } else {
             None
         }
     }
 
     fn add_new_line(&mut self) {
-        self.contents.push(LineBuffer::new());
-        self.cursor.x = 0;
-        self.cursor.y += 1;
+        if self.cursor.get_y() < self.edit_area_height() {
+            self.contents.push(LineBuffer::new());
+            self.cursor.x = 0;
+            self.cursor.move_down(self.edit_area_height());
+        }
     }
 
     fn move_up(&mut self) {
-        if self.cursor.y > 0 {
-            self.cursor.y -= 1;
-            self.move_updown();
-        }
+        self.cursor.move_up();
+        self.update_cursor_x();
     }
 
     fn move_down(&mut self) {
-        if self.contents.len() - 1 > self.cursor.y as usize {
-            self.cursor.y += 1;
-            self.move_updown();
-        }
+        self.cursor.move_down(self.edit_area_height());
+        self.update_cursor_x();
     }
 
-    fn move_updown(&mut self) {
+    fn update_cursor_x(&mut self) {
         let x = self.cursor.x as i32;
         let new_x = match self.current_line() {
             Some(line) => {
@@ -231,12 +223,16 @@ impl Editor {
                 new_x
             }
             None => {
-                error!("current_line is None: y {:?}", self.cursor.y);
+                error!("current_line is None: y {:?}", self.cursor.get_y());
                 0
             }
         };
 
         self.cursor.x = new_x;
+    }
+
+    fn edit_area_height(&self) -> u16 {
+        std::cmp::min(self.contents.len() as u16, screen_height() - 3)
     }
 
     // ================================================================================
@@ -309,7 +305,7 @@ impl Editor {
             }
             None => 0,
         };
-        self.cursor.move_right(char_width);
+        self.cursor.move_right(screen_width() as u16, char_width);
     }
 
     fn handle_save(&self) {
