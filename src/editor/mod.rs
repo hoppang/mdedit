@@ -77,8 +77,7 @@ impl Editor {
             match &self.popup {
                 None => self.handle_keyinput(modifier, code),
                 Some(p) => {
-                    let closed = p.handle_keyinput(modifier, code);
-                    if closed {
+                    if p.handle_keyinput(modifier, code) {
                         self.popup = None;
                         self.refresh(RefreshOption::Screen)
                     }
