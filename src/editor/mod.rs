@@ -70,7 +70,7 @@ impl Editor {
             // 글로벌 키
             match (modifier, code) {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
-                (_, KeyCode::F(10)) => break,
+                (_, KeyCode::F(12)) => break,
                 _ => {}
             }
 
