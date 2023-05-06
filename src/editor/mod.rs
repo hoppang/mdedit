@@ -94,6 +94,7 @@ impl Editor {
         match (modifier, code) {
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
             (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
+            (KeyModifiers::NONE, KeyCode::F(10)) => self.handle_menu(),
             (_, KeyCode::Backspace) => self.handle_backspace(),
             (_, KeyCode::Char(c)) => self.handle_input_char(c),
             (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
@@ -245,6 +246,12 @@ impl Editor {
             "mdedit: simple text editor inspired by MS-DOS EDIT",
         ));
         self.popup = Some(dialog);
+        self.refresh(RefreshOption::None);
+    }
+
+    fn handle_menu(&mut self) {
+        self.menu_bar.selected = Some(0);
+        self.menu_bar.draw(&self.screen, screen_width());
         self.refresh(RefreshOption::None);
     }
 
