@@ -41,17 +41,7 @@ impl MenuBar {
     pub fn draw(&mut self, mut screen: &Stdout, width: usize) {
         info!("draw menubar: groups = {:?} / {:?}", self.groups, screen);
 
-        queue!(screen, cursor::MoveTo(0, 0)).unwrap();
-        queue!(
-            screen,
-            SetBackgroundColor(Color::DarkCyan),
-            SetForegroundColor(Color::White)
-        )
-        .unwrap();
-
-        for _ in 0..width {
-            print!(" ");
-        }
+        self.draw_empty_background(screen, width);
 
         for (iter, group) in self.groups.iter().enumerate() {
             let x = (iter * 10 + 4).try_into().unwrap();
@@ -68,5 +58,19 @@ impl MenuBar {
         }
 
         queue!(screen, ResetColor).unwrap();
+    }
+
+    pub fn draw_empty_background(&mut self, mut screen: &Stdout, width: usize) {
+        queue!(screen, cursor::MoveTo(0, 0)).unwrap();
+        queue!(
+            screen,
+            SetBackgroundColor(Color::DarkCyan),
+            SetForegroundColor(Color::White)
+        )
+        .unwrap();
+
+        for _ in 0..width {
+            print!(" ");
+        }
     }
 }
