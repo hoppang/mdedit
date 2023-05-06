@@ -44,14 +44,19 @@ impl MenuBar {
         self.draw_empty_background(screen, width);
 
         for (iter, group) in self.groups.iter().enumerate() {
-            let x = (iter * 10 + 4).try_into().unwrap();
-            queue!(screen, cursor::MoveTo(x, 0)).unwrap();
-            print!("{}", group.name);
+            self.draw_name(screen, iter, &group.name);
         }
 
         match self.selected {
             Some(idx) => {
                 info!("some selected: {}", idx);
+                queue!(
+                    screen,
+                    SetBackgroundColor(Color::Black),
+                    SetForegroundColor(Color::White)
+                )
+                .unwrap();
+                self.draw_name(screen, idx, &self.groups[idx].name);
                 self.groups[idx].draw();
             }
             None => info!("Not selected"),
@@ -60,7 +65,7 @@ impl MenuBar {
         queue!(screen, ResetColor).unwrap();
     }
 
-    pub fn draw_empty_background(&mut self, mut screen: &Stdout, width: usize) {
+    fn draw_empty_background(&self, mut screen: &Stdout, width: usize) {
         queue!(screen, cursor::MoveTo(0, 0)).unwrap();
         queue!(
             screen,
@@ -72,5 +77,11 @@ impl MenuBar {
         for _ in 0..width {
             print!(" ");
         }
+    }
+
+    fn draw_name(&self, mut screen: &Stdout, idx: usize, name: &String) {
+        let x = (idx * 10 + 4).try_into().unwrap();
+        queue!(screen, cursor::MoveTo(x, 0)).unwrap();
+        print!("{}", name);
     }
 }
