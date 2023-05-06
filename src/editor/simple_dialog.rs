@@ -1,6 +1,7 @@
+use crate::consts;
 use crate::editor::ui::rect::Rect;
 use crossterm::event::{KeyCode, KeyModifiers};
-use crossterm::style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor};
+use crossterm::style::{ResetColor, SetBackgroundColor, SetForegroundColor};
 use crossterm::{cursor, queue};
 use std::io::Stdout;
 use unicode_width::UnicodeWidthStr;
@@ -30,8 +31,8 @@ impl SimpleDialog {
     pub fn draw(&self, msg: String) {
         queue!(
             &self.screen,
-            SetBackgroundColor(Color::White),
-            SetForegroundColor(Color::Black)
+            SetBackgroundColor(consts::ui::DLG_BGCOLOR),
+            SetForegroundColor(consts::ui::DLG_COLOR)
         )
         .expect("Failed to move cursor (simple_dialog)");
 

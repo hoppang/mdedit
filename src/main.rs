@@ -4,6 +4,9 @@
  * @author Bohun Kim
  */
 mod editor;
+mod consts {
+    pub mod ui;
+}
 
 use editor::Editor;
 

@@ -1,7 +1,8 @@
 mod menu_group;
 mod menu_item;
 
-use crossterm::style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor};
+use crate::consts;
+use crossterm::style::{ResetColor, SetBackgroundColor, SetForegroundColor};
 use crossterm::{cursor, queue};
 use log::info;
 use menu_group::MenuGroup;
@@ -52,8 +53,8 @@ impl MenuBar {
                 info!("some selected: {}", idx);
                 queue!(
                     screen,
-                    SetBackgroundColor(Color::Black),
-                    SetForegroundColor(Color::White)
+                    SetBackgroundColor(consts::ui::MENU_BGCOLOR_SELECTED),
+                    SetForegroundColor(consts::ui::MENU_COLOR)
                 )
                 .unwrap();
                 self.draw_name(screen, idx, &self.groups[idx].name);
@@ -69,8 +70,8 @@ impl MenuBar {
         queue!(screen, cursor::MoveTo(0, 0)).unwrap();
         queue!(
             screen,
-            SetBackgroundColor(Color::DarkCyan),
-            SetForegroundColor(Color::White)
+            SetBackgroundColor(consts::ui::MENU_BGCOLOR),
+            SetForegroundColor(consts::ui::MENU_COLOR)
         )
         .unwrap();
 
