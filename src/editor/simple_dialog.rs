@@ -1,3 +1,4 @@
+use crate::editor::ui::rect::Rect;
 use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor};
 use crossterm::{cursor, queue};
@@ -34,9 +35,7 @@ impl SimpleDialog {
         )
         .expect("Failed to move cursor (simple_dialog)");
 
-        self.draw_top_line();
-        self.draw_mid_lines();
-        self.draw_bottom_line();
+        Rect::draw(&self.screen, self.x, self.y, self.w, self.h);
         self.draw_message(&msg);
 
         queue!(&self.screen, ResetColor).unwrap();
@@ -47,38 +46,6 @@ impl SimpleDialog {
      */
     pub fn handle_keyinput(&self, modifier: KeyModifiers, code: KeyCode) -> bool {
         matches!((modifier, code), (KeyModifiers::NONE, KeyCode::Esc))
-    }
-
-    fn draw_top_line(&self) {
-        queue!(&self.screen, cursor::MoveTo(self.x, self.y)).expect("draw_top_line failed");
-
-        print!("╔");
-        for _ in 2..(self.w as i32) {
-            print!("═");
-        }
-        print!("╗");
-    }
-
-    fn draw_mid_lines(&self) {
-        for y in (self.y + 1)..(self.y + self.h - 1) {
-            queue!(&self.screen, cursor::MoveTo(self.x, y))
-                .expect("Failed to move cursor (simple_dialog)");
-            print!("║");
-            for _ in (self.x + 1)..(self.x + self.w - 1) {
-                print!(" ");
-            }
-            print!("║");
-        }
-    }
-
-    fn draw_bottom_line(&self) {
-        queue!(&self.screen, cursor::MoveTo(self.x, self.y + self.h - 1))
-            .expect("Failed to move cursor (simple_dialog)");
-        print!("╚");
-        for _ in 2..(self.w as i32) {
-            print!("═");
-        }
-        print!("╝");
     }
 
     pub fn draw_message(&self, msg: &String) {

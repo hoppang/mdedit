@@ -3,6 +3,7 @@ mod line_buffer;
 mod simple_dialog;
 mod ui {
     pub mod menu_bar;
+    pub mod rect;
 }
 
 use cursor::Cursor;
