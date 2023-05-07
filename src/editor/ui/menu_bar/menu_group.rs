@@ -9,6 +9,7 @@ pub struct MenuGroup {
     pub name: String,
     index: u16,
     items: Vec<MenuItem>,
+    selected: usize,
 }
 
 impl MenuGroup {
@@ -17,6 +18,7 @@ impl MenuGroup {
             name: String::from(group_name),
             index: idx,
             items: Vec::new(),
+            selected: 0,
         }
     }
 
@@ -40,6 +42,21 @@ impl MenuGroup {
 
         for (i, item) in self.items.iter().enumerate() {
             queue!(&std::io::stdout(), cursor::MoveTo(x + 2, y + i as u16 + 1)).unwrap();
+            if self.selected == i {
+                queue!(
+                    std::io::stdout(),
+                    SetBackgroundColor(consts::ui::MENU_BGCOLOR_SELECTED),
+                    SetForegroundColor(consts::ui::MENU_COLOR)
+                )
+                .unwrap();
+            } else {
+                queue!(
+                    std::io::stdout(),
+                    SetBackgroundColor(consts::ui::MENU_BGCOLOR),
+                    SetForegroundColor(consts::ui::MENU_COLOR)
+                )
+                .unwrap();
+            }
             print!("{}", item.name);
         }
     }
