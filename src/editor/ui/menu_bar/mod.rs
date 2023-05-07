@@ -2,6 +2,7 @@ mod menu_group;
 mod menu_item;
 
 use crate::consts;
+use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::{ResetColor, SetBackgroundColor, SetForegroundColor};
 use crossterm::{cursor, queue};
 use log::info;
@@ -37,6 +38,10 @@ impl MenuBar {
 
     pub fn add_group(&mut self, new_group: MenuGroup) {
         self.groups.push(new_group);
+    }
+
+    pub fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) -> bool {
+        matches!((modifier, code), (KeyModifiers::NONE, KeyCode::Esc))
     }
 
     pub fn draw(&mut self, mut screen: &Stdout, width: usize) {

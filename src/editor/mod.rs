@@ -74,6 +74,17 @@ impl Editor {
                 _ => {}
             }
 
+            if self.menu_bar.selected.is_some() {
+                if self.menu_bar.handle_keyinput(modifier, code) {
+                    self.menu_bar.selected = None;
+                    self.refresh(RefreshOption::Screen);
+                } else {
+                    self.refresh(RefreshOption::None);
+                }
+
+                continue;
+            }
+
             match &self.popup {
                 None => self.handle_keyinput(modifier, code),
                 Some(p) => {
