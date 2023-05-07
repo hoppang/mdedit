@@ -1,6 +1,7 @@
 mod cursor;
 mod line_buffer;
 mod simple_dialog;
+mod util;
 mod ui {
     pub mod menu_bar;
     pub mod rect;

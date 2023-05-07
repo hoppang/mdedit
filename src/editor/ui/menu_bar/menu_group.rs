@@ -1,7 +1,7 @@
 use super::menu_item::MenuItem;
-use crate::consts;
+use crate::consts::ui;
 use crate::editor::ui::rect::Rect;
-use crossterm::style::{SetBackgroundColor, SetForegroundColor};
+use crate::editor::util::set_color;
 use crossterm::{cursor, queue};
 
 #[derive(Debug)]
@@ -27,12 +27,7 @@ impl MenuGroup {
     }
 
     pub fn draw(&mut self) {
-        queue!(
-            std::io::stdout(),
-            SetBackgroundColor(consts::ui::MENU_BGCOLOR),
-            SetForegroundColor(consts::ui::MENU_COLOR)
-        )
-        .unwrap();
+        set_color(ui::MENU_COLOR, ui::MENU_BGCOLOR);
 
         let x = self.index * 10 + 2;
         let y = 1;
@@ -43,19 +38,9 @@ impl MenuGroup {
         for (i, item) in self.items.iter().enumerate() {
             queue!(&std::io::stdout(), cursor::MoveTo(x + 2, y + i as u16 + 1)).unwrap();
             if self.selected == i {
-                queue!(
-                    std::io::stdout(),
-                    SetBackgroundColor(consts::ui::MENU_BGCOLOR_SELECTED),
-                    SetForegroundColor(consts::ui::MENU_COLOR)
-                )
-                .unwrap();
+                set_color(ui::MENU_COLOR, ui::MENU_BGCOLOR_SELECTED);
             } else {
-                queue!(
-                    std::io::stdout(),
-                    SetBackgroundColor(consts::ui::MENU_BGCOLOR),
-                    SetForegroundColor(consts::ui::MENU_COLOR)
-                )
-                .unwrap();
+                set_color(ui::MENU_COLOR, ui::MENU_BGCOLOR);
             }
             print!("{}", item.name);
         }

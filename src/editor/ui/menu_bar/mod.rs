@@ -1,9 +1,10 @@
 mod menu_group;
 mod menu_item;
 
-use crate::consts;
+use crate::consts::ui;
+use crate::editor::util::set_color;
 use crossterm::event::{KeyCode, KeyModifiers};
-use crossterm::style::{ResetColor, SetBackgroundColor, SetForegroundColor};
+use crossterm::style::ResetColor;
 use crossterm::{cursor, queue};
 use log::info;
 use menu_group::MenuGroup;
@@ -56,12 +57,7 @@ impl MenuBar {
         match self.selected {
             Some(idx) => {
                 info!("some selected: {}", idx);
-                queue!(
-                    screen,
-                    SetBackgroundColor(consts::ui::MENU_BGCOLOR_SELECTED),
-                    SetForegroundColor(consts::ui::MENU_COLOR)
-                )
-                .unwrap();
+                set_color(ui::MENU_COLOR, ui::MENU_BGCOLOR_SELECTED);
                 self.draw_name(screen, idx, &self.groups[idx].name);
                 self.groups[idx].draw();
             }
@@ -73,12 +69,7 @@ impl MenuBar {
 
     fn draw_empty_background(&self, mut screen: &Stdout, width: usize) {
         queue!(screen, cursor::MoveTo(0, 0)).unwrap();
-        queue!(
-            screen,
-            SetBackgroundColor(consts::ui::MENU_BGCOLOR),
-            SetForegroundColor(consts::ui::MENU_COLOR)
-        )
-        .unwrap();
+        set_color(ui::MENU_COLOR, ui::MENU_BGCOLOR);
 
         for _ in 0..width {
             print!(" ");
