@@ -1,5 +1,7 @@
 use super::menu_item::MenuItem;
+use crate::consts;
 use crate::editor::ui::rect::Rect;
+use crossterm::style::{SetBackgroundColor, SetForegroundColor};
 use crossterm::{cursor, queue};
 
 #[derive(Debug)]
@@ -23,6 +25,13 @@ impl MenuGroup {
     }
 
     pub fn draw(&mut self) {
+        queue!(
+            std::io::stdout(),
+            SetBackgroundColor(consts::ui::MENU_BGCOLOR),
+            SetForegroundColor(consts::ui::MENU_COLOR)
+        )
+        .unwrap();
+
         let x = self.index * 10 + 2;
         let y = 1;
         let w = 25;
