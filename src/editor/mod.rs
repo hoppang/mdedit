@@ -7,6 +7,7 @@ mod ui {
     pub mod rect;
 }
 
+use crate::consts::ui::MenuCmd;
 use cursor::Cursor;
 use line_buffer::LineBuffer;
 use log::{error, info};
@@ -76,7 +77,7 @@ impl Editor {
             }
 
             if self.menu_bar.selected.is_some() {
-                if self.menu_bar.handle_keyinput(modifier, code) {
+                if self.menu_bar.handle_keyinput(self, modifier, code) {
                     self.menu_bar.selected = None;
                     self.refresh(RefreshOption::Screen);
                 } else {
@@ -97,8 +98,21 @@ impl Editor {
             }
         }
 
-        execute!(&self.screen, terminal::LeaveAlternateScreen)?;
-        terminal::disable_raw_mode()
+        self.goodbye();
+        Ok(())
+    }
+
+    pub fn goodbye(&self) {
+        execute!(&self.screen, terminal::LeaveAlternateScreen).unwrap();
+        terminal::disable_raw_mode().expect("Unable to disable raw mode");
+        std::process::exit(0);
+    }
+
+    pub fn invoke_menu(&self, job_no: MenuCmd) {
+        match job_no {
+            MenuCmd::Exit => self.goodbye(),
+            MenuCmd::About => {},
+        }
     }
 
     fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) {

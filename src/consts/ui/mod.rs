@@ -6,3 +6,9 @@ pub const MENU_BGCOLOR_SELECTED: Color = Color::Black;
 
 pub const DLG_BGCOLOR: Color = Color::Grey;
 pub const DLG_COLOR: Color = Color::Black;
+
+#[derive(Debug, Copy, Clone)]
+pub enum MenuCmd {
+    Exit,
+    About,
+}

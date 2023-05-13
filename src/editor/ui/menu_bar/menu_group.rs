@@ -2,7 +2,9 @@ use super::menu_item::MenuItem;
 use crate::consts::ui;
 use crate::editor::ui::rect::Rect;
 use crate::editor::util::set_color;
+use crate::Editor;
 use crossterm::{cursor, queue};
+use log::info;
 
 #[derive(Debug)]
 pub struct MenuGroup {
@@ -20,6 +22,11 @@ impl MenuGroup {
             items: Vec::new(),
             selected: 0,
         }
+    }
+
+    pub fn invoke(&self, editor: &Editor) {
+        info!("헬렐레");
+        self.items[self.selected].invoke(editor);
     }
 
     pub fn add_item(&mut self, new_item: MenuItem) {

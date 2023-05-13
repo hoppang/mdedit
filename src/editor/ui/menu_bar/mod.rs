@@ -2,7 +2,9 @@ mod menu_group;
 mod menu_item;
 
 use crate::consts::ui;
+use crate::consts::ui::MenuCmd;
 use crate::editor::util::set_color;
+use crate::Editor;
 use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::ResetColor;
 use crossterm::{cursor, queue};
@@ -25,12 +27,12 @@ impl MenuBar {
         };
 
         let mut file_group = MenuGroup::new("File", 0);
-        let exit_item = MenuItem::new("Exit");
+        let exit_item = MenuItem::new("Exit", MenuCmd::Exit);
         file_group.add_item(exit_item);
         menu_bar.add_group(file_group);
 
         let mut help_group = MenuGroup::new("Help", 1);
-        let about_item = MenuItem::new("About");
+        let about_item = MenuItem::new("About", MenuCmd::About);
         help_group.add_item(about_item);
         menu_bar.add_group(help_group);
 
@@ -41,8 +43,20 @@ impl MenuBar {
         self.groups.push(new_group);
     }
 
-    pub fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) -> bool {
-        matches!((modifier, code), (KeyModifiers::NONE, KeyCode::Esc))
+    pub fn handle_keyinput(&self, editor: &Editor, modifier: KeyModifiers, code: KeyCode) -> bool {
+        match (modifier, code) {
+            (KeyModifiers::NONE, KeyCode::Enter) => {
+                match self.selected {
+                    Some(idx) => {
+                        self.groups[idx].invoke(editor);
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            (KeyModifiers::NONE, KeyCode::Esc) => true,
+            _ => false,
+        }
     }
 
     pub fn draw(&mut self, mut screen: &Stdout, width: usize) {
