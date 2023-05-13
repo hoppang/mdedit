@@ -10,6 +10,7 @@ pub const DLG_COLOR: Color = Color::Black;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MenuCmd {
     None,
+    Refresh,
     CloseMenu,
     Exit,
     About,

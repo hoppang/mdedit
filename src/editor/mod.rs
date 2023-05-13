@@ -94,12 +94,18 @@ impl Editor {
             if self.menu_bar.selected.is_some() {
                 let cmd = self.menu_bar.handle_keyinput(modifier, code);
 
-                if cmd == MenuCmd::CloseMenu {
-                    self.menu_bar.selected = None;
-                    self.refresh(RefreshOption::Screen);
-                } else {
-                    self.cmd_queue.add(cmd).unwrap();
-                    self.refresh(RefreshOption::None);
+                match cmd {
+                    MenuCmd::CloseMenu => {
+                        self.menu_bar.selected = None;
+                        self.refresh(RefreshOption::Screen);
+                    },
+                    MenuCmd::Refresh => {
+                        self.refresh(RefreshOption::Screen);
+                    }
+                    _ => {
+                        self.cmd_queue.add(cmd).unwrap();
+                        self.refresh(RefreshOption::None);
+                    }
                 }
 
                 continue;

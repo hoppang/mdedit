@@ -42,12 +42,14 @@ impl MenuBar {
         self.groups.push(new_group);
     }
 
-    pub fn handle_keyinput(&self, modifier: KeyModifiers, code: KeyCode) -> MenuCmd {
+    pub fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) -> MenuCmd {
         match (modifier, code) {
             (KeyModifiers::NONE, KeyCode::Enter) => match self.selected {
                 Some(idx) => self.groups[idx].get_menu_cmd(),
                 _ => MenuCmd::None,
             },
+            (KeyModifiers::NONE, KeyCode::Left) => self.move_left(),
+            (KeyModifiers::NONE, KeyCode::Right) => self.move_right(),
             (KeyModifiers::NONE, KeyCode::Esc) => MenuCmd::CloseMenu,
             _ => MenuCmd::None,
         }
@@ -88,5 +90,31 @@ impl MenuBar {
         let x = (idx * 10 + 4).try_into().unwrap();
         queue!(screen, cursor::MoveTo(x, 0)).unwrap();
         print!("{}", name);
+    }
+
+    fn move_left(&mut self) -> MenuCmd {
+        info!("left - selected = {:?}", self.selected);
+        if let Some(idx) = self.selected {
+            let new_idx = 
+                if idx == 0 {
+                    self.groups.len() - 1
+                } else {
+                    idx - 1
+                };
+
+            self.selected = Some(new_idx)
+        }
+        info!("left - selected 2 = {:?}", self.selected);
+
+        MenuCmd::Refresh
+    }
+
+    fn move_right(&mut self) -> MenuCmd {
+        if let Some(idx) = self.selected {
+            let new_idx = if idx == (self.groups.len() - 1) { 0 } else { idx + 1 };
+            self.selected = Some(new_idx)
+        }
+
+        MenuCmd::Refresh
     }
 }
