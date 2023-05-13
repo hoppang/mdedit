@@ -95,12 +95,11 @@ impl MenuBar {
     fn move_left(&mut self) -> MenuCmd {
         info!("left - selected = {:?}", self.selected);
         if let Some(idx) = self.selected {
-            let new_idx = 
-                if idx == 0 {
-                    self.groups.len() - 1
-                } else {
-                    idx - 1
-                };
+            let new_idx = if idx == 0 {
+                self.groups.len() - 1
+            } else {
+                idx - 1
+            };
 
             self.selected = Some(new_idx)
         }
@@ -111,7 +110,11 @@ impl MenuBar {
 
     fn move_right(&mut self) -> MenuCmd {
         if let Some(idx) = self.selected {
-            let new_idx = if idx == (self.groups.len() - 1) { 0 } else { idx + 1 };
+            let new_idx = if idx == (self.groups.len() - 1) {
+                0
+            } else {
+                idx + 1
+            };
             self.selected = Some(new_idx)
         }
 

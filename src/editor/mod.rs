@@ -98,7 +98,7 @@ impl Editor {
                     MenuCmd::CloseMenu => {
                         self.menu_bar.selected = None;
                         self.refresh(RefreshOption::Screen);
-                    },
+                    }
                     MenuCmd::Refresh => {
                         self.refresh(RefreshOption::Screen);
                     }
