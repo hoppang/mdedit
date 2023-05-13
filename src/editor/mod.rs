@@ -1,41 +1,30 @@
-use log::info;
+mod cursor;
+mod line_buffer;
+mod simple_dialog;
+mod util;
+mod ui {
+    pub mod menu_bar;
+    pub mod rect;
+}
+
+use crate::consts::ui::MenuCmd;
+use cursor::Cursor;
+use line_buffer::LineBuffer;
+use log::{error, info};
+use queues::*;
+use simple_dialog::SimpleDialog;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, Stdout, Write};
+use ui::menu_bar::MenuBar;
 use unicode_width::UnicodeWidthChar;
 
-mod line_buffer;
-use line_buffer::LineBuffer;
-
-mod simple_dialog;
-use simple_dialog::SimpleDialog;
-
 use crossterm::{
-    cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
     terminal::{self, size, Clear, ClearType},
     Result,
 };
-
-struct Cursor {
-    x: u16,
-    y: u16,
-}
-
-impl Cursor {
-    fn move_left(&mut self, x: u16) {
-        if x <= self.x {
-            self.x -= x;
-        }
-    }
-
-    fn move_right(&mut self, x: u16) {
-        if self.x + x <= screen_width() as u16 {
-            self.x += x;
-        }
-    }
-}
 
 enum RefreshOption {
     None,
@@ -48,6 +37,8 @@ pub struct Editor {
     contents: Vec<LineBuffer>,
     cursor: Cursor,
     popup: Option<SimpleDialog>,
+    menu_bar: MenuBar,
+    cmd_queue: Queue<MenuCmd>,
 }
 
 impl Editor {
@@ -57,9 +48,11 @@ impl Editor {
 
         let mut ed = Editor {
             screen: std::io::stdout(),
-            cursor: Cursor { x: 0, y: 0 },
+            cursor: Cursor::new(),
             contents: Vec::from([LineBuffer::new()]),
             popup: None,
+            menu_bar: MenuBar::new(),
+            cmd_queue: Queue::new(),
         };
 
         let args: Vec<String> = env::args().collect();
@@ -77,20 +70,52 @@ impl Editor {
         self.refresh(RefreshOption::Screen);
 
         loop {
+            // command queue 처리. 하나씩
+            if self.cmd_queue.size() > 0 {
+                if let Ok(cmd) = self.cmd_queue.peek() {
+                    self.cmd_queue.remove().unwrap();
+                    match cmd {
+                        MenuCmd::Exit => self.goodbye(),
+                        MenuCmd::About => self.handle_help(),
+                        _ => {}
+                    }
+                }
+            }
+
             let (modifier, code) = read_char().unwrap();
 
             // 글로벌 키
             match (modifier, code) {
                 (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
-                (_, KeyCode::F(10)) => break,
+                (_, KeyCode::F(12)) => break,
                 _ => {}
+            }
+
+            if self.menu_bar.selected.is_some() {
+                let cmd = self.menu_bar.handle_keyinput(modifier, code);
+
+                match cmd {
+                    MenuCmd::CloseMenu => {
+                        self.menu_bar.selected = None;
+                        self.refresh(RefreshOption::Screen);
+                    }
+                    MenuCmd::Refresh => {
+                        self.refresh(RefreshOption::Screen);
+                    }
+                    _ => {
+                        self.cmd_queue.add(cmd).unwrap();
+                        self.menu_bar.selected = None;
+                        self.refresh(RefreshOption::Screen);
+                    }
+                }
+
+                continue;
             }
 
             match &self.popup {
                 None => self.handle_keyinput(modifier, code),
                 Some(p) => {
-                    let closed = p.handle_keyinput(modifier, code);
-                    if closed {
+                    if p.handle_keyinput(modifier, code) {
                         self.popup = None;
                         self.refresh(RefreshOption::Screen)
                     }
@@ -98,19 +123,26 @@ impl Editor {
             }
         }
 
-        execute!(&self.screen, terminal::LeaveAlternateScreen)?;
-        terminal::disable_raw_mode()
+        self.goodbye();
+        Ok(())
+    }
+
+    pub fn goodbye(&self) {
+        execute!(&self.screen, terminal::LeaveAlternateScreen).unwrap();
+        terminal::disable_raw_mode().expect("Unable to disable raw mode");
+        std::process::exit(0);
     }
 
     fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) {
         match (modifier, code) {
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.handle_save(),
             (KeyModifiers::NONE, KeyCode::F(1)) => self.handle_help(),
+            (KeyModifiers::NONE, KeyCode::F(10)) => self.handle_menu(),
             (_, KeyCode::Backspace) => self.handle_backspace(),
-            (KeyModifiers::NONE, KeyCode::Char(c)) => self.handle_input_char(c),
+            (_, KeyCode::Char(c)) => self.handle_input_char(c),
             (KeyModifiers::NONE, KeyCode::Enter) => self.handle_enterkey(),
-            (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(true),
-            (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(true),
+            (KeyModifiers::NONE, KeyCode::Left) => self.handle_leftkey(),
+            (KeyModifiers::NONE, KeyCode::Right) => self.handle_rightkey(),
             (KeyModifiers::NONE, KeyCode::Up) => self.handle_upkey(),
             (KeyModifiers::NONE, KeyCode::Down) => self.handle_downkey(),
             _ => {} // do nothing
@@ -123,7 +155,6 @@ impl Editor {
         let file = File::open(filename).unwrap();
         for line in io::BufReader::new(file).lines() {
             info!("line = {:?}", line);
-            // let text = line.unwrap();
             self.contents.push(LineBuffer::from(&line.unwrap()));
         }
     }
@@ -132,29 +163,38 @@ impl Editor {
      * 현재 커서가 있는 한 줄 갱신
      */
     fn refresh(&mut self, opt: RefreshOption) {
-        queue!(&self.screen, cursor::MoveTo(0, self.cursor.y)).expect("Failed to move cursor");
+        queue!(
+            &self.screen,
+            crossterm::cursor::MoveTo(0, self.cursor.screen_y())
+        )
+        .expect("Failed to move cursor");
 
         let mut line_count = 0;
+        let screen_width = screen_width();
 
         match opt {
-            RefreshOption::Line => self.current_line().draw(screen_width()),
+            RefreshOption::Line => {
+                if let Some(line) = self.current_line() {
+                    line.draw(screen_width)
+                }
+            }
             RefreshOption::Screen => {
-                queue!(&self.screen, Clear(ClearType::All), cursor::MoveTo(0, 0))
-                    .expect("Failed to move cursor");
+                queue!(&self.screen, Clear(ClearType::All)).unwrap();
 
                 for line in &self.contents {
                     info!(
                         "화면에 그리기: x {} y {} line {:?}",
-                        line_count, self.cursor.y, line
+                        line_count,
+                        self.cursor.screen_y(),
+                        line
                     );
-                    queue!(&self.screen, cursor::MoveTo(0, line_count))
+                    queue!(&self.screen, crossterm::cursor::MoveTo(0, line_count))
                         .expect("Failed to move cursor");
-                    line.draw(screen_width());
+                    line.draw(screen_width);
                     line_count += 1;
                 }
 
-                queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
-                    .expect("Failed to move cursor");
+                self.menu_bar.draw(&self.screen, screen_width);
             }
             _ => {}
         }
@@ -162,8 +202,11 @@ impl Editor {
         // 디버그 정보 출력
         self.print_dbgmsg();
 
-        queue!(&self.screen, cursor::MoveTo(self.cursor.x, self.cursor.y))
-            .expect("Failed to move cursor");
+        queue!(
+            &self.screen,
+            crossterm::cursor::MoveTo(self.cursor.x, self.cursor.screen_y())
+        )
+        .expect("Failed to move cursor");
 
         match Write::flush(&mut self.screen) {
             Ok(()) => (),
@@ -174,49 +217,67 @@ impl Editor {
     }
 
     fn print_dbgmsg(&mut self) {
-        queue!(&self.screen, cursor::MoveTo(0, screen_height() - 1))
-            .expect("Failed to move cursor");
+        queue!(
+            &self.screen,
+            crossterm::cursor::MoveTo(0, screen_height() - 1)
+        )
+        .expect("Failed to move cursor");
 
         let x = self.cursor.x;
-        let y = self.cursor.y;
+        let y = self.cursor.screen_y();
         print!(
-            "current_line: {:?} cx {:?} cy {}    ",
+            "current_line: {:?} cx {:?} cy {:?}",
             self.current_line(),
             x,
             y
         );
     }
 
-    fn current_line(&mut self) -> &mut LineBuffer {
-        &mut self.contents[self.cursor.y as usize]
+    fn current_line(&mut self) -> Option<&mut LineBuffer> {
+        if self.cursor.get_y() < self.contents.len() as u16 {
+            Some(&mut self.contents[self.cursor.get_y() as usize])
+        } else {
+            None
+        }
     }
 
     fn add_new_line(&mut self) {
-        self.contents.push(LineBuffer::new());
-        self.cursor.x = 0;
-        self.cursor.y += 1;
+        if self.cursor.get_y() < self.edit_area_height() {
+            self.contents.push(LineBuffer::new());
+            self.cursor.x = 0;
+            self.cursor.move_down(self.edit_area_height());
+        }
     }
 
     fn move_up(&mut self) {
-        if self.cursor.y > 0 {
-            self.cursor.y -= 1;
-
-            let x = self.cursor.x as i32;
-            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
-            self.cursor.x = new_x;
-            self.current_line().set_byte_index(new_byte_index);
-        }
+        self.cursor.move_up();
+        self.update_cursor_x();
     }
 
     fn move_down(&mut self) {
-        if self.contents.len() - 1 > self.cursor.y as usize {
-            self.cursor.y += 1;
+        self.cursor.move_down(self.edit_area_height());
+        self.update_cursor_x();
+    }
 
-            let x = self.cursor.x as i32;
-            let (new_x, new_byte_index) = self.current_line().cursor_and_byteindex(x);
-            self.cursor.x = new_x;
-            self.current_line().set_byte_index(new_byte_index);
-        }
+    fn update_cursor_x(&mut self) {
+        let x = self.cursor.x as i32;
+        let new_x = match self.current_line() {
+            Some(line) => {
+                let (new_x, new_byte_index) = line.cursor_and_byteindex(x);
+                line.set_byte_index(new_byte_index);
+                new_x
+            }
+            None => {
+                error!("current_line is None: y {:?}", self.cursor.get_y());
+                0
+            }
+        };
+
+        self.cursor.x = new_x;
+    }
+
+    fn edit_area_height(&self) -> u16 {
+        std::cmp::min(self.contents.len() as u16, screen_height() - 3)
     }
 
     // ================================================================================
@@ -231,10 +292,19 @@ impl Editor {
         self.refresh(RefreshOption::None);
     }
 
+    fn handle_menu(&mut self) {
+        self.menu_bar.selected = Some(0);
+        self.menu_bar.draw(&self.screen, screen_width());
+        self.refresh(RefreshOption::None);
+    }
+
     fn handle_input_char(&mut self, ch: char) {
-        self.current_line().insert(ch);
-        self.cursor.move_right(ch.width_cjk().unwrap() as u16);
-        self.refresh(RefreshOption::Line);
+        if let Some(line) = self.current_line() {
+            line.insert(ch);
+            self.cursor
+                .move_right(screen_width() as u16, ch.width_cjk().unwrap() as u16);
+            self.refresh(RefreshOption::Line);
+        }
     }
 
     fn handle_enterkey(&mut self) {
@@ -243,9 +313,11 @@ impl Editor {
     }
 
     fn handle_backspace(&mut self) {
-        let deleted = self.current_line().remove();
-        self.cursor.x -= deleted.width_cjk().unwrap() as u16;
-        self.refresh(RefreshOption::Line);
+        if let Some(line) = self.current_line() {
+            let deleted = line.remove();
+            self.cursor.x -= deleted.width_cjk().unwrap() as u16;
+            self.refresh(RefreshOption::Line);
+        }
     }
 
     fn handle_upkey(&mut self) {
@@ -258,24 +330,27 @@ impl Editor {
         self.refresh(RefreshOption::None);
     }
 
-    fn handle_leftkey(&mut self, refresh: bool) {
-        self.current_line().prev();
-        let char_width = self.current_line().current_char_width() as u16;
-        self.cursor.move_left(char_width);
-
-        if refresh {
-            self.refresh(RefreshOption::None)
+    fn handle_leftkey(&mut self) {
+        if let Some(line) = self.current_line() {
+            line.prev();
+            let char_width = line.current_char_width() as u16;
+            self.cursor.move_left(char_width);
+            self.refresh(RefreshOption::None);
         }
     }
 
-    fn handle_rightkey(&mut self, refresh: bool) {
-        let char_width = self.current_line().current_char_width() as u16;
-        self.cursor.move_right(char_width);
-        let _no_use = self.current_line().next();
+    fn handle_rightkey(&mut self) {
+        let char_width = match self.current_line() {
+            Some(line) => {
+                let char_width = line.current_char_width() as u16;
+                let _no_use = line.next();
 
-        if refresh {
-            self.refresh(RefreshOption::None)
-        }
+                char_width
+            }
+            None => 0,
+        };
+        self.cursor.move_right(screen_width() as u16, char_width);
+        self.refresh(RefreshOption::None);
     }
 
     fn handle_save(&self) {
@@ -290,12 +365,14 @@ impl Editor {
 fn read_char() -> Result<(KeyModifiers, KeyCode)> {
     loop {
         // rust 의 char 크기는 4바이트이므로 한글도 들어감.
-        if let Ok(Event::Key(KeyEvent {
-            code: c,
-            modifiers: m,
-        })) = event::read()
-        {
-            return Ok((m, c));
+        if event::poll(std::time::Duration::from_millis(25))? {
+            if let Ok(Event::Key(KeyEvent {
+                code: c,
+                modifiers: m,
+            })) = event::read()
+            {
+                return Ok((m, c));
+            }
         }
     }
 }
@@ -314,6 +391,10 @@ fn screen_height() -> u16 {
     }
 }
 
+/*
+    todo: github actions 에서 사용할 수 있는 테스트로 변경
+    에러메시지:
+        thread 'editor::test::test_move_updown' panicked at 'screen_width: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }', src/editor/mod.rs:390:23
 #[cfg(test)]
 mod test {
     use super::*;
@@ -321,19 +402,20 @@ mod test {
     #[test]
     fn test_move_updown() {
         let mut ed = Editor::new();
-        ed.current_line().push_str("가나다");
+        ed.current_line().unwrap().push_str("가나다");
         ed.add_new_line();
-        ed.current_line().push_str("abc");
+        ed.current_line().unwrap().push_str("abc");
         ed.cursor.x = 3;
 
-        assert_eq!(ed.current_line().get_byte_index(), 3);
+        assert_eq!(ed.current_line().unwrap().get_byte_index(), 3);
 
         ed.move_up();
-        assert_eq!(ed.current_line().get_byte_index(), 3);
+        assert_eq!(ed.current_line().unwrap().get_byte_index(), 3);
         assert_eq!(ed.cursor.x, 2);
 
         ed.move_down();
-        assert_eq!(ed.current_line().get_byte_index(), 2);
+        assert_eq!(ed.current_line().unwrap().get_byte_index(), 2);
         assert_eq!(ed.cursor.x, 2);
     }
 }
+*/

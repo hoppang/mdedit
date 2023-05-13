@@ -1,5 +1,8 @@
+use crate::consts::ui;
+use crate::editor::ui::rect::Rect;
+use crate::editor::util::set_color;
 use crossterm::event::{KeyCode, KeyModifiers};
-use crossterm::style::{Color, ResetColor, SetBackgroundColor, SetForegroundColor};
+use crossterm::style::ResetColor;
 use crossterm::{cursor, queue};
 use std::io::Stdout;
 use unicode_width::UnicodeWidthStr;
@@ -27,16 +30,9 @@ impl SimpleDialog {
     }
 
     pub fn draw(&self, msg: String) {
-        queue!(
-            &self.screen,
-            SetBackgroundColor(Color::White),
-            SetForegroundColor(Color::Black)
-        )
-        .expect("Failed to move cursor (simple_dialog)");
+        set_color(ui::DLG_BGCOLOR, ui::DLG_COLOR);
 
-        self.draw_top_line();
-        self.draw_mid_lines();
-        self.draw_bottom_line();
+        Rect::draw(&self.screen, self.x, self.y, self.w, self.h);
         self.draw_message(&msg);
 
         queue!(&self.screen, ResetColor).unwrap();
@@ -46,42 +42,7 @@ impl SimpleDialog {
      *  return: 팝업 종료 여부
      */
     pub fn handle_keyinput(&self, modifier: KeyModifiers, code: KeyCode) -> bool {
-        match (modifier, code) {
-            (KeyModifiers::NONE, KeyCode::Esc) => true,
-            _ => false,
-        }
-    }
-
-    fn draw_top_line(&self) {
-        queue!(&self.screen, cursor::MoveTo(self.x, self.y)).expect("draw_top_line failed");
-
-        print!("╔");
-        for _ in 2..(self.w as i32) {
-            print!("═");
-        }
-        print!("╗");
-    }
-
-    fn draw_mid_lines(&self) {
-        for y in (self.y + 1)..(self.y + self.h - 1) {
-            queue!(&self.screen, cursor::MoveTo(self.x, y))
-                .expect("Failed to move cursor (simple_dialog)");
-            print!("║");
-            for _ in (self.x + 1)..(self.x + self.w - 1) {
-                print!(" ");
-            }
-            print!("║");
-        }
-    }
-
-    fn draw_bottom_line(&self) {
-        queue!(&self.screen, cursor::MoveTo(self.x, self.y + self.h - 1))
-            .expect("Failed to move cursor (simple_dialog)");
-        print!("╚");
-        for _ in 2..(self.w as i32) {
-            print!("═");
-        }
-        print!("╝");
+        matches!((modifier, code), (KeyModifiers::NONE, KeyCode::Esc))
     }
 
     pub fn draw_message(&self, msg: &String) {
