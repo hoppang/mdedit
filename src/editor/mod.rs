@@ -104,7 +104,8 @@ impl Editor {
                     }
                     _ => {
                         self.cmd_queue.add(cmd).unwrap();
-                        self.refresh(RefreshOption::None);
+                        self.menu_bar.selected = None;
+                        self.refresh(RefreshOption::Screen);
                     }
                 }
 
