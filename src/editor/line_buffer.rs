@@ -97,11 +97,13 @@ impl LineBuffer {
     Mutable functions
     */
 
+    /* note: 비활성화한 테스트에서 사용
     #[cfg(test)]
     pub fn push_str(&mut self, s: &str) {
         self.s.push_str(s);
         self.byte_index = self.s.len();
     }
+    */
 
     /**
         현재 byte_index 위치에 글자를 집어넣는다.
@@ -212,10 +214,12 @@ impl LineBuffer {
         (new_cursor_x, byte_index as u16)
     }
 
+    /* note: 비활성화한 테스트에서 사용
     #[cfg(test)]
     pub fn get_byte_index(&self) -> usize {
         self.byte_index
     }
+    */
 }
 
 impl fmt::Debug for LineBuffer {
