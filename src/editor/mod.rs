@@ -11,6 +11,7 @@ use crate::consts::ui::MenuCmd;
 use cursor::Cursor;
 use line_buffer::LineBuffer;
 use log::{error, info};
+use queues::*;
 use simple_dialog::SimpleDialog;
 use std::env;
 use std::fs::File;
@@ -37,6 +38,7 @@ pub struct Editor {
     cursor: Cursor,
     popup: Option<SimpleDialog>,
     menu_bar: MenuBar,
+    cmd_queue: Queue<MenuCmd>,
 }
 
 impl Editor {
@@ -50,6 +52,7 @@ impl Editor {
             contents: Vec::from([LineBuffer::new()]),
             popup: None,
             menu_bar: MenuBar::new(),
+            cmd_queue: Queue::new(),
         };
 
         let args: Vec<String> = env::args().collect();
@@ -67,6 +70,18 @@ impl Editor {
         self.refresh(RefreshOption::Screen);
 
         loop {
+            // command queue 처리. 하나씩
+            if self.cmd_queue.size() > 0 {
+                if let Ok(cmd) = self.cmd_queue.peek() {
+                    self.cmd_queue.remove().unwrap();
+                    match cmd {
+                        MenuCmd::Exit => self.goodbye(),
+                        MenuCmd::About => self.handle_help(),
+                        _ => {}
+                    }
+                }
+            }
+
             let (modifier, code) = read_char().unwrap();
 
             // 글로벌 키
@@ -77,10 +92,13 @@ impl Editor {
             }
 
             if self.menu_bar.selected.is_some() {
-                if self.menu_bar.handle_keyinput(self, modifier, code) {
+                let cmd = self.menu_bar.handle_keyinput(modifier, code);
+
+                if cmd == MenuCmd::CloseMenu {
                     self.menu_bar.selected = None;
                     self.refresh(RefreshOption::Screen);
                 } else {
+                    self.cmd_queue.add(cmd).unwrap();
                     self.refresh(RefreshOption::None);
                 }
 
@@ -106,13 +124,6 @@ impl Editor {
         execute!(&self.screen, terminal::LeaveAlternateScreen).unwrap();
         terminal::disable_raw_mode().expect("Unable to disable raw mode");
         std::process::exit(0);
-    }
-
-    pub fn invoke_menu(&self, job_no: MenuCmd) {
-        match job_no {
-            MenuCmd::Exit => self.goodbye(),
-            MenuCmd::About => {},
-        }
     }
 
     fn handle_keyinput(&mut self, modifier: KeyModifiers, code: KeyCode) {

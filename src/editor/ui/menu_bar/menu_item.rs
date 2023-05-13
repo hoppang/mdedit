@@ -1,21 +1,16 @@
 use crate::consts::ui::MenuCmd;
-use crate::Editor;
 
 #[derive(Debug)]
 pub struct MenuItem {
     pub name: String,
-    pub job: MenuCmd,
+    pub cmd: MenuCmd,
 }
 
 impl MenuItem {
-    pub fn new(new_name: &str, job_no: MenuCmd) -> MenuItem {
+    pub fn new(new_name: &str, cmd_val: MenuCmd) -> MenuItem {
         MenuItem {
             name: String::from(new_name),
-            job: job_no,
+            cmd: cmd_val,
         }
-    }
-
-    pub fn invoke(&self, editor: &Editor) {
-        editor.invoke_menu(self.job);
     }
 }

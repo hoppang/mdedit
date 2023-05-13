@@ -4,7 +4,6 @@ mod menu_item;
 use crate::consts::ui;
 use crate::consts::ui::MenuCmd;
 use crate::editor::util::set_color;
-use crate::Editor;
 use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::ResetColor;
 use crossterm::{cursor, queue};
@@ -43,19 +42,14 @@ impl MenuBar {
         self.groups.push(new_group);
     }
 
-    pub fn handle_keyinput(&self, editor: &Editor, modifier: KeyModifiers, code: KeyCode) -> bool {
+    pub fn handle_keyinput(&self, modifier: KeyModifiers, code: KeyCode) -> MenuCmd {
         match (modifier, code) {
-            (KeyModifiers::NONE, KeyCode::Enter) => {
-                match self.selected {
-                    Some(idx) => {
-                        self.groups[idx].invoke(editor);
-                        true
-                    }
-                    _ => false,
-                }
-            }
-            (KeyModifiers::NONE, KeyCode::Esc) => true,
-            _ => false,
+            (KeyModifiers::NONE, KeyCode::Enter) => match self.selected {
+                Some(idx) => self.groups[idx].get_menu_cmd(),
+                _ => MenuCmd::None,
+            },
+            (KeyModifiers::NONE, KeyCode::Esc) => MenuCmd::CloseMenu,
+            _ => MenuCmd::None,
         }
     }
 
