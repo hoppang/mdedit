@@ -333,12 +333,14 @@ impl Editor {
 fn read_char() -> Result<(KeyModifiers, KeyCode)> {
     loop {
         // rust 의 char 크기는 4바이트이므로 한글도 들어감.
-        if let Ok(Event::Key(KeyEvent {
-            code: c,
-            modifiers: m,
-        })) = event::read()
-        {
-            return Ok((m, c));
+        if event::poll(std::time::Duration::from_millis(25))? {
+            if let Ok(Event::Key(KeyEvent {
+                code: c,
+                modifiers: m,
+            })) = event::read()
+            {
+                return Ok((m, c));
+            }
         }
     }
 }
