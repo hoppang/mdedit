@@ -203,7 +203,7 @@ impl LineBuffer {
 
             x -= c_width;
             byte_index += c.len_utf8();
-            prev_c_len = c.len_utf8() as usize;
+            prev_c_len = c.len_utf8();
         }
 
         let new_cursor_x: u16 = std::cmp::min(
