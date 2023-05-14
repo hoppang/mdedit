@@ -15,7 +15,13 @@ use crossterm::terminal::size;
 use log::{info, LevelFilter};
 
 fn setup_log() {
-    simple_logging::log_to_file("dev.log", LevelFilter::Info).unwrap()
+    match simple_logging::log_to_file("dev.log", LevelFilter::Info) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("Failed to start log: {:?}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 struct CleanUp;

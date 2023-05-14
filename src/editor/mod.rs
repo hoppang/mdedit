@@ -354,10 +354,18 @@ impl Editor {
     }
 
     fn handle_save(&self) {
-        let mut file = File::create("./test.txt").unwrap();
-
-        for s in &self.contents {
-            writeln!(&mut file, "{}", s.get_buffer()).unwrap();
+        match File::create("./test.txt") {
+            Ok(mut file) => {
+                for s in &self.contents {
+                    match writeln!(&mut file, "{}", s.get_buffer()) {
+                        Ok(_) => {}
+                        Err(e) => error!("Failed to write line {}", e),
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to open file to save: {:?}", e);
+            }
         }
     }
 }
@@ -380,14 +388,20 @@ fn read_char() -> Result<(KeyModifiers, KeyCode)> {
 fn screen_width() -> usize {
     match size() {
         Ok((cols, _rows)) => cols as usize,
-        Err(error) => panic!("screen_width: {:?}", error),
+        Err(error) => {
+            error!("screen_width: {:?}", error);
+            0
+        }
     }
 }
 
 fn screen_height() -> u16 {
     match size() {
         Ok((_cols, rows)) => rows,
-        Err(error) => panic!("screen_width: {:?}", error),
+        Err(error) => {
+            error!("screen_height: {:?}", error);
+            0
+        }
     }
 }
 
