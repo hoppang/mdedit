@@ -4,6 +4,7 @@ use crate::editor::util::set_color;
 use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::ResetColor;
 use crossterm::{cursor, queue};
+use log::error;
 use std::io::Stdout;
 use unicode_width::UnicodeWidthStr;
 
@@ -18,7 +19,13 @@ pub struct SimpleDialog {
 impl SimpleDialog {
     pub fn new() -> SimpleDialog {
         let scr = std::io::stdout();
-        let (width, height) = crossterm::terminal::size().unwrap();
+        let (width, height) = match crossterm::terminal::size() {
+            Ok((width, height)) => (width, height),
+            Err(e) => {
+                error!("Make SimpleDialog with default size: {}", e);
+                (40, 30)
+            }
+        };
 
         SimpleDialog {
             screen: scr,
