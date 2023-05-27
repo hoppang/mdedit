@@ -7,6 +7,7 @@ mod ui {
     pub mod rect;
 }
 
+use crate::check_result;
 use crate::consts::ui::MenuCmd;
 use cursor::Cursor;
 use line_buffer::LineBuffer;
@@ -64,6 +65,12 @@ impl Editor {
         ed
     }
 
+    /**
+        에디터의 메인 루프
+
+        # Return
+        * main 함수의 리턴값으로 Ok 를 리턴
+    */
     pub fn run(&mut self) -> Result<()> {
         execute!(&self.screen, terminal::EnterAlternateScreen)?;
         terminal::enable_raw_mode()?;
@@ -73,23 +80,26 @@ impl Editor {
             // command queue 처리. 하나씩
             if self.cmd_queue.size() > 0 {
                 if let Ok(cmd) = self.cmd_queue.peek() {
-                    self.cmd_queue.remove().unwrap();
-                    match cmd {
-                        MenuCmd::Exit => self.goodbye(),
-                        MenuCmd::About => self.handle_help(),
-                        _ => {}
+                    match self.cmd_queue.remove() {
+                        Ok(_) => match cmd {
+                            MenuCmd::Exit => self.goodbye(),
+                            MenuCmd::About => self.handle_help(),
+                            _ => {}
+                        },
+                        Err(e) => error!("Failed to remove cmd from queue: {}", e),
                     }
                 }
             }
 
-            let (modifier, code) = read_char().unwrap();
-
-            // 글로벌 키
-            match (modifier, code) {
-                (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
-                (_, KeyCode::F(12)) => break,
-                _ => {}
-            }
+            let (modifier, code) = match read_char() {
+                Ok((m, c)) => match (m, c) {
+                    // 글로벌 키 처리
+                    (KeyModifiers::CONTROL, KeyCode::Char('q')) => break,
+                    (_, KeyCode::F(12)) => break,
+                    _ => (m, c),
+                },
+                Err(_) => break,
+            };
 
             if self.menu_bar.selected.is_some() {
                 let cmd = self.menu_bar.handle_keyinput(modifier, code);
@@ -103,7 +113,10 @@ impl Editor {
                         self.refresh(RefreshOption::Screen);
                     }
                     _ => {
-                        self.cmd_queue.add(cmd).unwrap();
+                        match self.cmd_queue.add(cmd) {
+                            Ok(_) => {}
+                            Err(e) => error!("cmd_queue add error: {}", e),
+                        };
                         self.menu_bar.selected = None;
                         self.refresh(RefreshOption::Screen);
                     }
@@ -129,7 +142,7 @@ impl Editor {
 
     pub fn goodbye(&self) {
         execute!(&self.screen, terminal::LeaveAlternateScreen).unwrap();
-        terminal::disable_raw_mode().expect("Unable to disable raw mode");
+        check_result!(terminal::disable_raw_mode(), "Unable to disable raw mode");
         std::process::exit(0);
     }
 
@@ -149,13 +162,26 @@ impl Editor {
         }
     }
 
+    /**
+        파일을 열고 내용을 읽어들인다.
+
+        # Arguments
+        * `filename` - 파일 이름
+    */
     fn open_file(&mut self, filename: &String) {
         self.contents.clear();
 
-        let file = File::open(filename).unwrap();
-        for line in io::BufReader::new(file).lines() {
-            info!("line = {:?}", line);
-            self.contents.push(LineBuffer::from(&line.unwrap()));
+        match File::open(filename) {
+            Ok(file) => {
+                for line in io::BufReader::new(file).lines() {
+                    info!("line = {:?}", line);
+                    match line {
+                        Ok(l) => self.contents.push(LineBuffer::from(&l)),
+                        Err(e) => error!("Failed to read line: {}", e),
+                    }
+                }
+            }
+            Err(e) => error!("Failed to open file: {}", e),
         }
     }
 
@@ -208,12 +234,7 @@ impl Editor {
         )
         .expect("Failed to move cursor");
 
-        match Write::flush(&mut self.screen) {
-            Ok(()) => (),
-            Err(error) => {
-                panic!("Failed to put char {:?}", error);
-            }
-        };
+        check_result!(Write::flush(&mut self.screen), "Failed to put char");
     }
 
     fn print_dbgmsg(&mut self) {
@@ -298,11 +319,17 @@ impl Editor {
         self.refresh(RefreshOption::None);
     }
 
+    /**
+    입력된 키가 일반 문자일 경우 처리
+
+    # Arguments
+    * `ch` - 입력된 문자
+    */
     fn handle_input_char(&mut self, ch: char) {
         if let Some(line) = self.current_line() {
             line.insert(ch);
             self.cursor
-                .move_right(screen_width() as u16, ch.width_cjk().unwrap() as u16);
+                .move_right(screen_width() as u16, ch.width_cjk().unwrap_or(0) as u16);
             self.refresh(RefreshOption::Line);
         }
     }
@@ -315,7 +342,14 @@ impl Editor {
     fn handle_backspace(&mut self) {
         if let Some(line) = self.current_line() {
             let deleted = line.remove();
-            self.cursor.x -= deleted.width_cjk().unwrap() as u16;
+            let char_width = match deleted.width_cjk() {
+                Some(width) => width as u16,
+                None => {
+                    error!("Unexpected operation on width_cjk");
+                    0
+                }
+            };
+            self.cursor.x -= char_width;
             self.refresh(RefreshOption::Line);
         }
     }

@@ -7,7 +7,7 @@ use crate::editor::util::set_color;
 use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::style::ResetColor;
 use crossterm::{cursor, queue};
-use log::info;
+use log::{error, info};
 use menu_group::MenuGroup;
 use menu_item::MenuItem;
 use std::convert::TryInto;
@@ -86,12 +86,25 @@ impl MenuBar {
         }
     }
 
+    /**
+    메뉴 그룹의 이름(ex: 파일 메뉴면 'File')을 화면에 그린다.
+
+    # Arguments
+    * `screen` - 콘솔 화면 객체
+    * `idx` - 가로 위치(0이 왼쪽)
+    * `name` - 이름 문자열
+    */
     fn draw_name(&self, mut screen: &Stdout, idx: usize, name: &String) {
-        let x = (idx * 10 + 4).try_into().unwrap();
-        queue!(screen, cursor::MoveTo(x, 0)).unwrap();
-        print!("{}", name);
+        let x = (idx * 10 + 4).try_into().unwrap_or(0);
+        match queue!(screen, cursor::MoveTo(x, 0)) {
+            Ok(_) => print!("{}", name),
+            Err(e) => error!("draw_name error: {}", e),
+        }
     }
 
+    /**
+     * 메뉴 막대에서 왼쪽 방향키 처리. 이전 메뉴로 이동하며, 가장 왼쪽 메뉴면 오른쪽 끝으로 이동한다.
+     */
     fn move_left(&mut self) -> MenuCmd {
         info!("left - selected = {:?}", self.selected);
         if let Some(idx) = self.selected {

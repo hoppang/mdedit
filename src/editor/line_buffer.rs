@@ -76,16 +76,18 @@ impl LineBuffer {
         if self.s.is_empty() || internal_cursor >= self.s.len() {
             '\0'
         } else {
-            let c = self.s[internal_cursor..].chars().next().unwrap();
-            c
+            self.s[internal_cursor..].chars().next().unwrap_or('\0')
         }
     }
 
+    /**
+        현재 커서 위치에 있는 문자의 너비를 구한다.
+    */
     pub fn current_char_width(&self) -> usize {
         if self.current_char() == '\0' {
             0
         } else {
-            self.current_char().width_cjk().unwrap()
+            self.current_char().width_cjk().unwrap_or(0)
         }
     }
 
@@ -182,7 +184,12 @@ impl LineBuffer {
 
     /**
         가로 위치(x)를 인자로 넣어주면, 캐릭터 경계에 맞춰서 cursor_x / byte_index 를 구한다.
-        cursor_x 는 화면상의 길이, byte_index 는 바이트 단위 길이
+
+        # Arguments
+        * `cursor_x` - 가로 위치
+
+        # Return
+        * (새로운 화면 가로 위치, 바이트 단위 길이)
     */
     pub fn cursor_and_byteindex(&self, cursor_x: i32) -> (u16, u16) {
         let mut x: i32 = cursor_x;
@@ -190,7 +197,7 @@ impl LineBuffer {
         let mut prev_c_len: usize = 0;
 
         for c in self.s.chars() {
-            let c_width = c.width_cjk().unwrap() as i32;
+            let c_width = c.width_cjk().unwrap_or(0) as i32;
 
             match x {
                 0 => break,
@@ -207,8 +214,8 @@ impl LineBuffer {
         }
 
         let new_cursor_x: u16 = std::cmp::min(
-            (cursor_x + x).try_into().unwrap(),
-            self.s.width_cjk().try_into().unwrap(),
+            (cursor_x + x).try_into().unwrap_or(0),
+            self.s.width_cjk().try_into().unwrap_or(0),
         );
 
         (new_cursor_x, byte_index as u16)
